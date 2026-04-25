@@ -23,12 +23,13 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'server.combostore.bd',
+        hostname: 'combostore.bd',
       },
       {
         protocol: 'https',
-        hostname: 'combostore.bd',
+        hostname: 'server.combostore.bd',
       },
+
     ],
   },
 };
