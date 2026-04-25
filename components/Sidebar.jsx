@@ -46,9 +46,9 @@ const Sidebar = () => {
 	const { token, appData, notifications, addNotification, cartItems, addCartItems, removeCartItems, resetCartItems, updateCartItems, userDataX, setUserDataX, navToggle, setnavToggle } = useCounterStore()
 
 	var navs = [
-		{ label: ("Dashboard"), value: "/", icon: <IconDashboard />, roles: ['administrator'] },
+		{ label: ("Dashboard"), value: "/", icon: <IconDashboard /> },
 
-		{ label: ("Onboard"), value: "onboard", icon: <IconSnowboarding />, roles: ['administrator'] },
+		// { label: ("Onboard"), value: "onboard", icon: <IconSnowboarding />, },
 
 	];
 
@@ -98,23 +98,20 @@ const Sidebar = () => {
 					{/* 
 			{JSON.stringify(userDataX)}
 			{JSON.stringify(token)} */}
-
-
-
-					<div>
-
-						<ToggleNavs navs={navs} key={`hello`} />
-						<Accounts />
-					</div>
-
-					{/* 
-					{token && (
+					{/* {token && (
 						<div>
 
 							<ToggleNavs navs={navs} key={`hello`} />
 							<Accounts />
 						</div>
 					)} */}
+
+
+					<ToggleNavs navs={navs} key={`hello`} />
+
+
+
+
 
 					<VersionUpdateBanner />
 

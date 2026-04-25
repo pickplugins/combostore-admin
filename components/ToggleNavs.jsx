@@ -60,7 +60,10 @@ const ToggleNavs = (props) => {
   const navTree = buildNavTree(navs);
 
   function hasRoleAccessed(navsRoles) {
-    return userDataX?.roles?.some(element => navsRoles.includes(element));
+
+    if (navsRoles == null) return true;
+
+    return userDataX?.roles?.some(element => navsRoles?.includes(element));
   }
 
   return (

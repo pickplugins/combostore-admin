@@ -4,6 +4,7 @@ import Login from '../components/Login';
 import Register from '../components/Register';
 
 import Dashboard from '../components/Dashboard';
+import ComboshopVercelOnboarding from "../components/vercel/ComboshopVercelOnboarding";
 
 
 import { useCounterStore } from '../store/useCounterStore'
@@ -41,15 +42,15 @@ export default function Home() {
 
           </div>
         </div>
-      )}
+      )} */}
 
-      {token && (
+      {/* {token && (
 
         <Dashboard />
 
       )} */}
 
-      <Dashboard />
+      <ComboshopVercelOnboarding />
 
 
     </AuthProvider>

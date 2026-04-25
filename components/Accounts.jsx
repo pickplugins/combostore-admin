@@ -71,6 +71,9 @@ const Accounts = () => {
 					</div>
 				)}
 
+				{JSON.stringify(token)}
+
+
 				{!userDataX?.id && (
 					<div
 						className="p-2 hover:bg-gray-400 rounded-sm cursor-pointer px-4 bg-gray-600 text-white"
