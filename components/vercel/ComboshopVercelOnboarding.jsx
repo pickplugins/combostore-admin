@@ -2,8 +2,8 @@
 
 import { useState, useCallback } from "react";
 
-const STOREFRONT_REPO = "pickplugins/comboshop.com.bd-storefront";
-const DASHBOARD_REPO = "pickplugins/comboshop.com.bd-dashboard";
+const STOREFRONT_REPO = "pickplugins/combostore-storefront";
+const DASHBOARD_REPO = "pickplugins/combostore-dashboard";
 
 function StepBar({ step }) {
   const cls = (n) => {
@@ -224,7 +224,7 @@ export default function ComboshopVercelOnboarding() {
   const [framework, setFramework] = useState("nextjs");
   const [mainDomain, setMainDomain] = useState("");
 
-  const [sfName, setSfName] = useState("comboshop-storefront");
+  const [sfName, setSfName] = useState("combostore-storefront");
   const [sfBuild, setSfBuild] = useState("");
   const [sfOutput, setSfOutput] = useState("");
   const [sfInstall, setSfInstall] = useState("");
@@ -234,7 +234,7 @@ export default function ComboshopVercelOnboarding() {
     { key: "NEXT_PUBLIC_APP_URL", value: "" },
   ]);
 
-  const [dbName, setDbName] = useState("comboshop-dashboard");
+  const [dbName, setDbName] = useState("combostore-dashboard");
   const [dbBuild, setDbBuild] = useState("");
   const [dbOutput, setDbOutput] = useState("");
   const [dbInstall, setDbInstall] = useState("");
