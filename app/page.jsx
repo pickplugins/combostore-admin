@@ -27,7 +27,7 @@ export default function Home() {
 
     <AuthProvider>
 
-      {!token && (
+      {/* {!token && (
         <div className="grid xl:grid-cols-2 md:grid-cols-1 gap-20 w-full xl:w-[1200px] px-3 xl:px-10 mx-auto mt-10">
           <div className="bg-white p-5 rounded-sm">
             <h2 className="my-5 text-2xl">{("Register")}</h2>
@@ -47,9 +47,9 @@ export default function Home() {
 
         <Dashboard />
 
-      )}
+      )} */}
 
-
+      <Dashboard />
 
 
     </AuthProvider>
