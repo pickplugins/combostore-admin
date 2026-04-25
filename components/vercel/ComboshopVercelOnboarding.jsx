@@ -229,14 +229,22 @@ export default function ComboshopVercelOnboarding() {
   const [sfOutput, setSfOutput] = useState("");
   const [sfInstall, setSfInstall] = useState("");
   const [sfRoot, setSfRoot] = useState("");
-  const [sfEnvs, setSfEnvs] = useState([{ key: "", value: "" }]);
+  const [sfEnvs, setSfEnvs] = useState([
+    { key: "NEXT_PUBLIC_SERVER_URL", value: "" },
+    { key: "NEXT_PUBLIC_APP_URL", value: "" },
+  ]);
 
   const [dbName, setDbName] = useState("comboshop-dashboard");
   const [dbBuild, setDbBuild] = useState("");
   const [dbOutput, setDbOutput] = useState("");
   const [dbInstall, setDbInstall] = useState("");
   const [dbRoot, setDbRoot] = useState("");
-  const [dbEnvs, setDbEnvs] = useState([{ key: "", value: "" }]);
+  const [dbEnvs, setDbEnvs] = useState([
+    { key: "NEXT_PUBLIC_STORE_URL", value: "" },
+    { key: "NEXT_PUBLIC_SERVER_URL", value: "" },
+    { key: "NEXT_PUBLIC_APP_URL", value: "" },
+
+  ]);
 
   const [logs, setLogs] = useState([]);
   const [deploying, setDeploying] = useState(false);
