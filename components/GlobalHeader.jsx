@@ -101,7 +101,7 @@ const GlobalHeader = () => {
 
 
 				<div>
-					<select
+					{/* <select
 						onChange={(e) => {
 							setlang(e.target.value);
 						}}
@@ -113,7 +113,7 @@ const GlobalHeader = () => {
 						<option value="zh">Chinese</option>
 						<option value="ja">Japanese</option>
 						<option value="es">Spanish</option>
-					</select>
+					</select> */}
 					<Notify notifications={notifications} />
 				</div>
 
