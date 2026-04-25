@@ -23,11 +23,11 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'server.kidobazar.com',
+        hostname: 'server.combostore.bd',
       },
       {
         protocol: 'https',
-        hostname: 'server.kidobazar.com',
+        hostname: 'combostore.bd',
       },
     ],
   },
