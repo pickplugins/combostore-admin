@@ -1,0 +1,41 @@
+{
+  "name": "combo-payments",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@dnd-kit/react": "^0.3.2",
+    "@number-flow/react": "^0.5.14",
+    "@react-google-maps/api": "^2.20.8",
+    "@ryzeup/richtexteditor": "^1.0.33",
+    "@splidejs/react-splide": "^0.7.12",
+    "@tabler/icons-react": "^3.36.0",
+    "@tiptap/react": "^3.20.1",
+    "@tiptap/starter-kit": "^3.20.1",
+    "@vis.gl/react-google-maps": "^1.7.1",
+    "date-fns": "^4.1.0",
+    "he": "^1.2.0",
+    "jspdf": "^3.0.4",
+    "next": "^16.1.1",
+    "next-intl": "^4.6.1",
+    "quill": "^2.0.3",
+    "react": "^19.2.3",
+    "react-chartjs-2": "^5.3.1",
+    "react-datepicker": "^9.1.0",
+    "react-dom": "^19.2.3",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4.1.18",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.1",
+    "postcss": "^8",
+    "tailwindcss": "^4.1.18"
+  }
+}
