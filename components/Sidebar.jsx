@@ -100,13 +100,21 @@ const Sidebar = () => {
 			{JSON.stringify(token)} */}
 
 
+
+					<div>
+
+						<ToggleNavs navs={navs} key={`hello`} />
+						<Accounts />
+					</div>
+
+					{/* 
 					{token && (
 						<div>
 
 							<ToggleNavs navs={navs} key={`hello`} />
 							<Accounts />
 						</div>
-					)}
+					)} */}
 
 					<VersionUpdateBanner />
 
