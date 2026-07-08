@@ -39,9 +39,9 @@ export default function RootLayout({ children }) {
 				className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-w-screen min-h-screen`}>
 				<AuthProvider>
 					<div className={`flex min-h-screen w-screen`}>
-						<Sidebar />
+						{/* <Sidebar /> */}
 						<main className="flex-1 bg-gray-300">
-							<GlobalHeader />
+							{/* <GlobalHeader /> */}
 
 							<div className="">{children}</div>
 						</main>

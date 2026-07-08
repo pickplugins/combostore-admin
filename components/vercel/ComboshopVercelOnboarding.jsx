@@ -232,6 +232,7 @@ export default function ComboshopVercelOnboarding() {
   const [sfEnvs, setSfEnvs] = useState([
     { key: "NEXT_PUBLIC_SERVER_URL", value: "" },
     { key: "NEXT_PUBLIC_APP_URL", value: "" },
+    { key: "API_TOKEN", value: "" },
   ]);
 
   const [dbName, setDbName] = useState("combostore-dashboard");
