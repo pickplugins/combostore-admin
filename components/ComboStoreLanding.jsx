@@ -172,10 +172,10 @@ export default function ComboStoreLanding() {
           </div>
 
           <a
-            href="#contact"
+            href="/onboard"
             className="hidden rounded-lg bg-stone-100 px-5 py-2.5 text-sm font-semibold text-emerald-950 transition-colors hover:bg-emerald-400 md:inline-block"
           >
-            Book a Demo
+            Deploy on Vercel
           </a>
 
           <button
@@ -211,11 +211,11 @@ export default function ComboStoreLanding() {
               Hello
 
               <a
-                href="#contact"
+                href="/onboard"
                 onClick={() => setMenuOpen(false)}
                 className="mt-2 rounded-lg bg-stone-100 px-4 py-2.5 text-center font-semibold text-emerald-950"
               >
-                Book a Demo
+                Deploy on Vercel
               </a>
             </div>
           </div>
@@ -242,10 +242,10 @@ export default function ComboStoreLanding() {
             </p>
             <div className="mb-6 flex flex-wrap gap-3">
               <a
-                href="#contact"
+                href="/onboard"
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-6 py-3.5 text-sm font-semibold text-emerald-950 transition-transform hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/25"
               >
-                Book a Demo <ArrowRight size={16} />
+                Deploy on Vercel <ArrowRight size={16} />
               </a>
               <a
                 href="#features"
@@ -553,10 +553,10 @@ export default function ComboStoreLanding() {
             </p>
             <div className="relative flex flex-wrap justify-center gap-3">
               <a
-                href="#"
+                href="/onboard"
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-6 py-3.5 text-sm font-semibold text-emerald-950 transition-transform hover:-translate-y-0.5"
               >
-                Book a Demo <ArrowRight size={16} />
+                Deploy on Vercel <ArrowRight size={16} />
               </a>
               <a
                 href="#"
@@ -625,8 +625,8 @@ export default function ComboStoreLanding() {
                 <a href="#contact" className="text-stone-100/85 hover:text-emerald-400">
                   Contact
                 </a>
-                <a href="#contact" className="text-stone-100/85 hover:text-emerald-400">
-                  Book a Demo
+                <a href="/onboard" className="text-stone-100/85 hover:text-emerald-400">
+                  Deploy on Vercel
                 </a>
               </div>
             </div>
