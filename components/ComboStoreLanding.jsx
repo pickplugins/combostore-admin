@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Check,
@@ -14,6 +15,7 @@ import {
   X,
   ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 
 const FEATURES = [
   {
@@ -198,6 +200,16 @@ export default function ComboStoreLanding() {
                   {link.label}
                 </a>
               ))}
+              <Link
+                key={''}
+                href={'/blogs'}
+                onClick={() => setMenuOpen(false)}
+                className="hover:text-stone-100"
+              >
+                Blogs
+              </Link>
+              Hello
+
               <a
                 href="#contact"
                 onClick={() => setMenuOpen(false)}
@@ -367,11 +379,10 @@ export default function ComboStoreLanding() {
               return (
                 <div
                   key={f.code}
-                  className={`grid grid-cols-1 items-center gap-4 px-7 py-6 transition-colors hover:bg-emerald-900/30 sm:grid-cols-[80px_1fr_auto] ${
-                    i !== FEATURES.length - 1
-                      ? "border-b border-emerald-800/60"
-                      : ""
-                  }`}
+                  className={`grid grid-cols-1 items-center gap-4 px-7 py-6 transition-colors hover:bg-emerald-900/30 sm:grid-cols-[80px_1fr_auto] ${i !== FEATURES.length - 1
+                    ? "border-b border-emerald-800/60"
+                    : ""
+                    }`}
                 >
                   <span className="font-receipt text-sm font-semibold text-emerald-400">
                     {f.code}
@@ -475,9 +486,8 @@ export default function ComboStoreLanding() {
             {FLOW_STEPS.map((step, i) => (
               <div key={step.num} className="relative">
                 <div
-                  className={`h-full border border-emerald-800/60 bg-emerald-900/20 p-7 ${
-                    i > 0 ? "md:-ml-px" : ""
-                  } ${i > 0 ? "-mt-px md:mt-0" : ""} rounded-2xl md:rounded-none md:first:rounded-l-2xl md:last:rounded-r-2xl`}
+                  className={`h-full border border-emerald-800/60 bg-emerald-900/20 p-7 ${i > 0 ? "md:-ml-px" : ""
+                    } ${i > 0 ? "-mt-px md:mt-0" : ""} rounded-2xl md:rounded-none md:first:rounded-l-2xl md:last:rounded-r-2xl`}
                 >
                   <span className="font-receipt mb-3 block text-xs text-emerald-400">
                     {step.num}
@@ -516,13 +526,11 @@ export default function ComboStoreLanding() {
             {PAYMENT_BAND.map((p, i) => (
               <div
                 key={p.name}
-                className={`p-7 ${
-                  i !== PAYMENT_BAND.length - 1
-                    ? "border-b border-emerald-800/60 sm:border-b-0 sm:border-r"
-                    : ""
-                } ${
-                  i % 2 === 0 ? "border-b border-emerald-800/60 sm:border-b-0" : ""
-                }`}
+                className={`p-7 ${i !== PAYMENT_BAND.length - 1
+                  ? "border-b border-emerald-800/60 sm:border-b-0 sm:border-r"
+                  : ""
+                  } ${i % 2 === 0 ? "border-b border-emerald-800/60 sm:border-b-0" : ""
+                  }`}
               >
                 <div className="font-display mb-1.5 text-2xl font-bold text-emerald-400">
                   {p.name}

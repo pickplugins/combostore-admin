@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import crypto from "crypto";
 
 const STOREFRONT_REPO = "pickplugins/combostore-storefront";
 const DASHBOARD_REPO = "pickplugins/combostore-dashboard";
@@ -108,7 +109,7 @@ function SectionHeading({ children }) {
   );
 }
 
-function EnvVarEditor({ envs, onChange }) {
+function EnvVarEditor({ mainDomain, envs, onChange }) {
   const addRow = () => onChange([...envs, { key: "", value: "" }]);
   const removeRow = (i) => onChange(envs.filter((_, idx) => idx !== i));
   const updateRow = (i, field, val) =>
@@ -116,6 +117,8 @@ function EnvVarEditor({ envs, onChange }) {
 
   return (
     <div>
+
+
       {envs.map((row, i) => (
         <div key={i} className="flex gap-2 mb-2 items-center">
           <input
@@ -151,7 +154,7 @@ function EnvVarEditor({ envs, onChange }) {
 function ProjectCard({
   badge, color, repoUrl, repo,
   projectName, onProjectNameChange,
-  domain, domainLabel,
+  domain, domainLabel, mainDomain,
   buildCmd, onBuildCmd,
   outputDir, onOutputDir,
   installCmd, onInstallCmd,
@@ -160,6 +163,8 @@ function ProjectCard({
 }) {
   return (
     <Card>
+
+
       <div className="flex flex-wrap items-start gap-2 mb-4">
         <Badge color={color}>{badge}</Badge>
         <div className="flex-1 min-w-0">
@@ -181,7 +186,7 @@ function ProjectCard({
           <TextInput value={projectName} onChange={(e) => onProjectNameChange(e.target.value)} />
         </div>
         <div>
-          <FieldLabel>Assigned domain</FieldLabel>
+          <FieldLabel>Assigned domain </FieldLabel>
           <TextInput value={domain} readOnly />
         </div>
       </div>
@@ -210,7 +215,7 @@ function ProjectCard({
 
       <div className="border-t border-gray-100 mt-4 pt-4">
         <SectionHeading>Environment variables</SectionHeading>
-        <EnvVarEditor envs={envs} onChange={onEnvsChange} />
+        <EnvVarEditor mainDomain={mainDomain} envs={envs} onChange={onEnvsChange} />
       </div>
     </Card>
   );
@@ -230,8 +235,8 @@ export default function ComboshopVercelOnboarding() {
   const [sfInstall, setSfInstall] = useState("");
   const [sfRoot, setSfRoot] = useState("");
   const [sfEnvs, setSfEnvs] = useState([
-    { key: "NEXT_PUBLIC_SERVER_URL", value: "" },
-    { key: "NEXT_PUBLIC_APP_URL", value: "" },
+    { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
+    { key: "NEXT_PUBLIC_APP_URL", value: `${mainDomain}` },
     { key: "API_TOKEN", value: "" },
   ]);
 
@@ -241,16 +246,61 @@ export default function ComboshopVercelOnboarding() {
   const [dbInstall, setDbInstall] = useState("");
   const [dbRoot, setDbRoot] = useState("");
   const [dbEnvs, setDbEnvs] = useState([
-    { key: "NEXT_PUBLIC_STORE_URL", value: "" },
-    { key: "NEXT_PUBLIC_SERVER_URL", value: "" },
-    { key: "NEXT_PUBLIC_APP_URL", value: "" },
+    { key: "NEXT_PUBLIC_STORE_URL", value: `${mainDomain}` },
+    { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
+    { key: "NEXT_PUBLIC_APP_URL", value: `dashboard.${mainDomain}` },
 
   ]);
+
+
+  const token = crypto.randomBytes(32).toString("hex");
+
+
+  useEffect(() => {
+
+    setSfEnvs([
+      { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
+      { key: "NEXT_PUBLIC_APP_URL", value: `${mainDomain}` },
+      { key: "API_TOKEN", value: token },
+    ])
+
+    setDbEnvs([
+      { key: "NEXT_PUBLIC_STORE_URL", value: `${mainDomain}` },
+      { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
+      { key: "NEXT_PUBLIC_APP_URL", value: `dashboard.${mainDomain}` },
+
+    ])
+
+  }, [mainDomain]);
+
+
+
+
+
+
+
+
+
+
+
 
   const [logs, setLogs] = useState([]);
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState(false);
   const [deployError, setDeployError] = useState("");
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   const addLog = useCallback((msg, type = "info") => {
     setLogs((prev) => [...prev, { msg, type }]);
@@ -454,6 +504,41 @@ export default function ComboshopVercelOnboarding() {
           </p>
           <StepBar step={1} />
 
+
+          <Card>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1L1 14h14L8 1z" fill="#3B82F6" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-900">Setup WordPress</div>
+                <div className="text-xs text-gray-400">Required to create server</div>
+              </div>
+            </div>
+
+            <div className="text-xs text-gray-400 mt-2 flex flex-col gap-3">
+              <p>Install following plugins</p>
+              <div><a className="text-blue-500 font-medium" href="https://github.com/pickplugins/combostore-server">Combo Store - Server</a> </div>
+              <div><a className="text-blue-500 font-medium" href="https://wordpress.org/plugins/enable-cors/">Enable CORS</a> </div>
+              <div><a className="text-blue-500 font-medium" href="https://wordpress.org/plugins/jwt-authentication-for-wp-rest-api/">JWT Authentication for WP REST API
+              </a> </div>
+
+
+
+
+            </div>
+
+
+          </Card>
+
+
+
+
+
+
+
           {/* Vercel credentials */}
           <Card>
             <div className="flex items-center gap-3 mb-4">
@@ -546,18 +631,19 @@ export default function ComboshopVercelOnboarding() {
               placeholder="e.g. mystore.com"
             />
             {mainDomain && (
-              <p className="text-xs text-gray-400 mt-2">
-                Storefront →{" "}
-                <span className="text-blue-500 font-medium">{mainDomain}</span>
-                <span className="mx-1.5">·</span>
-                Dashboard →{" "}
-                <span className="text-blue-500 font-medium">dashboard.{mainDomain}</span>
-              </p>
+              <div className="text-xs text-gray-400 mt-2 flex flex-col gap-3">
+                <div>Storefront →{" "} <span className="text-blue-500 font-medium">{mainDomain}</span> </div>
+                <div>Dashboard →{" "}  <span className="text-blue-500 font-medium">dashboard.{mainDomain}</span></div>
+                <div>Server →{" "}  <span className="text-blue-500 font-medium">server.{mainDomain} </span> {`(WordPress)`}</div>
+
+
+
+              </div>
             )}
           </Card>
 
           <div className="flex justify-end">
-            <PrimaryButton className="text-white!" onClick={goStep2}>Continue →</PrimaryButton>
+            <div className="text-white! bg-blue-600 px-3 py-2 rounded-sm cursor-pointer" onClick={goStep2}>Continue →</div>
           </div>
         </>
       )}
@@ -577,6 +663,7 @@ export default function ComboshopVercelOnboarding() {
             repoUrl={`https://github.com/${STOREFRONT_REPO}`}
             projectName={sfName} onProjectNameChange={setSfName}
             domain={mainDomain} domainLabel="main domain"
+            mainDomain={mainDomain}
             buildCmd={sfBuild} onBuildCmd={setSfBuild}
             outputDir={sfOutput} onOutputDir={setSfOutput}
             installCmd={sfInstall} onInstallCmd={setSfInstall}
@@ -590,6 +677,7 @@ export default function ComboshopVercelOnboarding() {
             repoUrl={`https://github.com/${DASHBOARD_REPO}`}
             projectName={dbName} onProjectNameChange={setDbName}
             domain={`dashboard.${mainDomain}`} domainLabel="dashboard subdomain"
+            mainDomain={mainDomain}
             buildCmd={dbBuild} onBuildCmd={setDbBuild}
             outputDir={dbOutput} onOutputDir={setDbOutput}
             installCmd={dbInstall} onInstallCmd={setDbInstall}
@@ -599,7 +687,7 @@ export default function ComboshopVercelOnboarding() {
 
           <div className="flex justify-end gap-2.5">
             <SecondaryButton onClick={() => setStep(1)}>← Back</SecondaryButton>
-            <PrimaryButton onClick={() => setStep(3)}>Review & Deploy →</PrimaryButton>
+            <div onClick={() => setStep(3)} className="cursor-pointer px-3 py-2 rounded-sm bg-blue-500 text-white">Review & Deploy →</div>
           </div>
         </>
       )}
