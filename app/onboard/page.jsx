@@ -234,13 +234,10 @@ const page = () => {
 
 
 
-		<div className="bg-gray-300 flex flex-col gap-5 xl:p-5 p-2">
-
-
-			<ComboshopVercelOnboarding
-
-
-			/>
+		<div className="flex flex-col">
+			{/* The wizard paints its own full-bleed background, so the gray
+			    wrapper and its padding only framed it in a stray border. */}
+			<ComboshopVercelOnboarding />
 		</div>
 
 

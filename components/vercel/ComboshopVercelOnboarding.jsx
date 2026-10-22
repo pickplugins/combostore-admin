@@ -2,114 +2,262 @@
 
 import { useState, useCallback, useEffect } from "react";
 import crypto from "crypto";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CircleAlert,
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Globe,
+  KeyRound,
+  LayoutDashboard,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Rocket,
+  Server,
+  Store,
+  Trash2,
+} from "lucide-react";
 
-const STOREFRONT_REPO = "pickplugins/combostore-storefront";
-const DASHBOARD_REPO = "pickplugins/combostore-dashboard";
+/*
+  One repo, one project. combostore-storefront is retired: the dashboard repo
+  serves the storefront at `/` and the admin screens under `/dashboard`, so
+  there is nothing left to deploy separately and the project takes the root
+  domain rather than a `dashboard.` subdomain.
+*/
+const DASHBOARD_REPO = "pickplugins/combostore";
 
-function StepBar({ step }) {
-  const cls = (n) => {
-    if (step > n) return "h-1 flex-1 rounded-full bg-emerald-500 transition-all duration-300";
-    if (step === n) return "h-1 flex-1 rounded-full bg-blue-500 transition-all duration-300";
-    return "h-1 flex-1 rounded-full bg-gray-200 transition-all duration-300";
-  };
-  return (
-    <div className="flex gap-1.5 mb-6">
-      <div className={cls(1)} />
-      <div className={cls(2)} />
-      <div className={cls(3)} />
-    </div>
-  );
-}
+const WP_PLUGINS = [
+  {
+    name: "Combo Store — Server",
+    note: "The commerce models and REST layer",
+    href: "https://github.com/pickplugins/combostore-server",
+  },
+  {
+    name: "Enable CORS",
+    note: "Lets the storefront read the WordPress API",
+    href: "https://wordpress.org/plugins/enable-cors/",
+  },
+  {
+    name: "JWT Authentication for WP REST API",
+    note: "Signs in dashboard users",
+    href: "https://wordpress.org/plugins/jwt-authentication-for-wp-rest-api/",
+  },
+];
 
-function Badge({ children, color = "blue" }) {
-  const variants = {
-    teal: "bg-emerald-50 text-emerald-800",
-    blue: "bg-blue-50 text-blue-800",
-    purple: "bg-violet-50 text-violet-800",
-    amber: "bg-amber-50 text-amber-800",
-  };
-  return (
-    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded whitespace-nowrap ${variants[color] || variants.blue}`}>
-      {children}
-    </span>
-  );
-}
+const STEPS = [
+  { n: 1, label: "Credentials" },
+  { n: 2, label: "Configure" },
+  { n: 3, label: "Review" },
+];
 
-function FieldLabel({ children }) {
-  return <label className="block text-xs font-medium text-gray-500 mb-1">{children}</label>;
-}
+const FONT_SANS = { fontFamily: "var(--font-geist-sans), system-ui, sans-serif" };
+const FONT_MONO = {
+  fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace",
+};
 
-function TextInput({ value, onChange, placeholder, type = "text", readOnly = false, mono = false, className = "" }) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      readOnly={readOnly}
-      className={`w-full text-sm px-3 py-2 rounded-lg border outline-none transition
-        ${readOnly
-          ? "border-gray-100 bg-gray-50 text-gray-400 cursor-default"
-          : "border-gray-200 bg-white text-gray-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-        }
-        ${mono ? "font-mono" : ""}
-        ${className}`}
-    />
-  );
-}
+/*
+  `globals.css` styles bare `input`, `select` and `button` with UNLAYERED rules.
+  Unlayered CSS outranks everything in `@layer utilities` regardless of
+  specificity, so without `!` on radius, border, padding and colour these
+  controls silently fall back to the global gray-400 / `rounded-sm` / 5px look
+  no matter what Tailwind classes they carry. `!` is only applied to the
+  properties that rule actually sets - everything else is a plain utility.
 
-function SelectInput({ value, onChange, children }) {
-  return (
-    <select
-      value={value}
-      onChange={onChange}
-      className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-    >
-      {children}
-    </select>
-  );
-}
+  Box-shadow is deliberately left alone: the global rule sets `--tw-shadow`
+  but `focus:ring-*` writes `--tw-ring-shadow`, a different variable in the
+  same composite, so focus rings still land.
+*/
+const INPUT =
+  "w-full !cursor-text !rounded-lg !border !border-zinc-300 bg-white !px-3.5 !py-2.5 text-sm !text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:!border-emerald-500 focus:ring-2 focus:ring-emerald-100";
+
+const INPUT_READONLY =
+  "w-full !cursor-default !rounded-lg !border !border-zinc-200 bg-zinc-100 !px-3.5 !py-2.5 text-sm !text-zinc-500 outline-none";
+
+const INPUT_INVALID =
+  "!border-red-400 focus:!border-red-500 focus:ring-red-100";
+
+const SELECT =
+  "w-full appearance-none !cursor-pointer !rounded-lg !border !border-zinc-300 bg-white !px-3.5 !py-2.5 text-sm !text-zinc-900 outline-none transition-colors focus:!border-emerald-500 focus:ring-2 focus:ring-emerald-100";
+
+const BTN =
+  "inline-flex items-center justify-center gap-2 !rounded-xl !border !border-transparent !px-5 !py-2.5 text-sm font-semibold !shadow-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+
+const BTN_PRIMARY = `${BTN} bg-emerald-600 !text-white hover:bg-emerald-700 focus-visible:outline-emerald-600`;
+
+const BTN_SECONDARY = `${BTN} !border-zinc-300 bg-white !text-zinc-700 hover:bg-zinc-50 focus-visible:outline-zinc-400`;
+
+const BTN_ICON =
+  "inline-flex shrink-0 items-center justify-center gap-1.5 !rounded-lg !border !border-transparent !bg-transparent !px-2 !py-1.5 text-xs font-medium !shadow-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-1";
+
+/* ── Primitives ─────────────────────────────────────────────────── */
 
 function Card({ children, className = "" }) {
   return (
-    <div className={`bg-white border border-gray-200 rounded-xl p-5 mb-4 ${className}`}>
+    <div
+      className={`mb-4 rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 ${className}`}>
       {children}
     </div>
   );
 }
 
-function PrimaryButton({ children, onClick, disabled = false }) {
+function CardHead({ icon: Icon, title, desc, tone = "emerald" }) {
+  const tones = {
+    emerald: "bg-emerald-50 text-emerald-600",
+    violet: "bg-violet-50 text-violet-600",
+    zinc: "bg-zinc-100 text-zinc-600",
+  };
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="bg-blue-500 hover:bg-blue-600 active:scale-95 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-all"
-    >
-      {children}
-    </button>
+    <div className="mb-5 flex items-start gap-3">
+      <span
+        className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${tones[tone]}`}>
+        <Icon size={17} />
+      </span>
+      <div className="min-w-0">
+        <div className="text-sm font-semibold tracking-tight text-zinc-900">
+          {title}
+        </div>
+        <div className="mt-0.5 text-xs text-zinc-500">{desc}</div>
+      </div>
+    </div>
   );
 }
 
-function SecondaryButton({ children, onClick }) {
+function FieldLabel({ children, htmlFor }) {
   return (
-    <button
-      onClick={onClick}
-      className="border border-gray-200 hover:bg-gray-50 active:scale-95 text-gray-700 text-sm px-4 py-2 rounded-lg transition-all"
-    >
+    <label
+      htmlFor={htmlFor}
+      className="mb-1.5 block text-xs font-medium text-zinc-600">
       {children}
-    </button>
+    </label>
   );
 }
 
-function SectionHeading({ children }) {
+function FieldError({ children }) {
+  if (!children) return null;
   return (
-    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-600">
+      <CircleAlert size={13} className="shrink-0" />
       {children}
     </p>
   );
 }
 
-function EnvVarEditor({ mainDomain, envs, onChange }) {
+function SectionHeading({ children, action }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <p className="text-xs font-semibold tracking-wider text-zinc-400">
+        {children}
+      </p>
+      {action}
+    </div>
+  );
+}
+
+function Stepper({ step }) {
+  return (
+    <div className="mb-8 flex items-center">
+      {STEPS.map((s, i) => {
+        const done = step > s.n;
+        const current = step === s.n;
+        return (
+          <div key={s.n} className="flex flex-1 items-center last:flex-none">
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${done
+                  ? "bg-emerald-600 text-white"
+                  : current
+                    ? "bg-zinc-900 text-white"
+                    : "border border-zinc-300 bg-white text-zinc-400"
+                  }`}>
+                {done ? <Check size={13} /> : s.n}
+              </span>
+              <span
+                className={`hidden text-sm transition-colors sm:block ${current ? "font-semibold text-zinc-900" : "text-zinc-500"
+                  }`}>
+                {s.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <span
+                className={`mx-3 h-px flex-1 transition-colors ${done ? "bg-emerald-500" : "bg-zinc-200"
+                  }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BrandBar({ step }) {
+  return (
+    <div className="mb-8 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-2.5">
+        <span className="flex size-8 items-center justify-center rounded-xl bg-emerald-600 text-[13px] font-bold text-white">
+          CS
+        </span>
+        <span className="text-[17px] font-semibold tracking-tight text-zinc-900">
+          ComboStore
+        </span>
+      </div>
+      {step ? (
+        <span className="text-xs text-zinc-500">Step {step} of 3</span>
+      ) : null}
+    </div>
+  );
+}
+
+/* A URL row with copy-to-clipboard and an open-in-new-tab control. */
+function UrlRow({ icon: Icon, label, url, copied, onCopy }) {
+  return (
+    <div className="rounded-xl border border-zinc-200 p-3.5">
+      <div className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-500">
+        <Icon size={13} />
+        {label}
+      </div>
+      <div className="flex items-center gap-2">
+        <span
+          style={FONT_MONO}
+          className="min-w-0 flex-1 truncate text-sm text-zinc-800">
+          {url}
+        </span>
+        <button
+          type="button"
+          onClick={onCopy}
+          aria-label={`Copy ${label} URL`}
+          className={`${BTN_ICON} !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 focus-visible:outline-zinc-400`}>
+          {copied ? (
+            <>
+              <Check size={13} className="text-emerald-600" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy size={13} />
+              Copy
+            </>
+          )}
+        </button>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Open ${label}`}
+          className="inline-flex shrink-0 items-center justify-center rounded-lg px-2 py-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+          <ExternalLink size={13} />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function EnvVarEditor({ envs, onChange, onRegenerateToken }) {
   const addRow = () => onChange([...envs, { key: "", value: "" }]);
   const removeRow = (i) => onChange(envs.filter((_, idx) => idx !== i));
   const updateRow = (i, field, val) =>
@@ -117,109 +265,84 @@ function EnvVarEditor({ mainDomain, envs, onChange }) {
 
   return (
     <div>
-
-
-      {envs.map((row, i) => (
-        <div key={i} className="flex gap-2 mb-2 items-center">
-          <input
-            className="w-36 text-xs font-mono px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-            placeholder="KEY"
-            value={row.key}
-            onChange={(e) => updateRow(i, "key", e.target.value)}
-          />
-          <input
-            className="flex-1 text-xs px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-            placeholder="value"
-            value={row.value}
-            onChange={(e) => updateRow(i, "value", e.target.value)}
-          />
+      <SectionHeading
+        action={
           <button
-            onClick={() => removeRow(i)}
-            className="text-gray-300 hover:text-red-400 text-xl leading-none px-1 transition-colors"
-          >
-            ×
+            type="button"
+            onClick={onRegenerateToken}
+            className={`${BTN_ICON} !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 focus-visible:outline-zinc-400`}>
+            <RefreshCw size={12} />
+            New API token
           </button>
-        </div>
-      ))}
+        }>
+        ENVIRONMENT VARIABLES
+      </SectionHeading>
+
+      <p className="mb-3 text-xs text-zinc-500">
+        Injected before the first build. The URLs follow the domain you entered —
+        editing it rewrites them.
+      </p>
+
+      <div className="space-y-2">
+        {envs.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              aria-label={`Variable ${i + 1} name`}
+              style={FONT_MONO}
+              className={`${INPUT} !w-40 shrink-0 !px-2.5 !py-2 text-xs`}
+              placeholder="KEY"
+              value={row.key}
+              onChange={(e) => updateRow(i, "key", e.target.value)}
+            />
+            <input
+              aria-label={`Variable ${i + 1} value`}
+              style={FONT_MONO}
+              className={`${INPUT} !px-2.5 !py-2 text-xs`}
+              placeholder="value"
+              value={row.value}
+              onChange={(e) => updateRow(i, "value", e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => removeRow(i)}
+              aria-label={`Remove ${row.key || "variable"}`}
+              className={`${BTN_ICON} !text-zinc-400 hover:!bg-red-50 hover:!text-red-600 focus-visible:outline-red-400`}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
       <button
+        type="button"
         onClick={addRow}
-        className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
-      >
-        + add variable
+        className={`${BTN_ICON} mt-3 !text-emerald-700 hover:!bg-emerald-50 focus-visible:outline-emerald-500`}>
+        <Plus size={13} />
+        Add variable
       </button>
     </div>
   );
 }
 
-function ProjectCard({
-  badge, color, repoUrl, repo,
-  projectName, onProjectNameChange,
-  domain, domainLabel, mainDomain,
-  buildCmd, onBuildCmd,
-  outputDir, onOutputDir,
-  installCmd, onInstallCmd,
-  rootDir, onRootDir,
-  envs, onEnvsChange,
-}) {
+/*
+  Page frame. Declared at module scope on purpose: a component defined inside
+  the wizard body would be a new type on every render, so React would unmount
+  and remount the whole form - losing focus out of the field being typed into.
+*/
+function Shell({ children, step }) {
   return (
-    <Card>
-
-
-      <div className="flex flex-wrap items-start gap-2 mb-4">
-        <Badge color={color}>{badge}</Badge>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 truncate">{projectName}</div>
-          <div className="text-xs text-gray-400 mt-0.5 truncate">
-            <a href={repoUrl} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
-              {repo}
-            </a>
-          </div>
-        </div>
-        <Badge color={domainLabel === "main domain" ? "purple" : "amber"}>
-          {domainLabel}
-        </Badge>
+    <div
+      className="min-h-screen w-full bg-zinc-50 text-zinc-900 antialiased"
+      style={FONT_SANS}>
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+        <BrandBar step={step} />
+        {children}
       </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-        <div>
-          <FieldLabel>Project name in Vercel</FieldLabel>
-          <TextInput value={projectName} onChange={(e) => onProjectNameChange(e.target.value)} />
-        </div>
-        <div>
-          <FieldLabel>Assigned domain </FieldLabel>
-          <TextInput value={domain} readOnly />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-        <div>
-          <FieldLabel>Root directory</FieldLabel>
-          <TextInput value={rootDir} onChange={(e) => onRootDir(e.target.value)} placeholder="/ (default)" />
-        </div>
-        <div>
-          <FieldLabel>Build command</FieldLabel>
-          <TextInput value={buildCmd} onChange={(e) => onBuildCmd(e.target.value)} placeholder="npm run build" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <FieldLabel>Output directory</FieldLabel>
-          <TextInput value={outputDir} onChange={(e) => onOutputDir(e.target.value)} placeholder=".next / dist" />
-        </div>
-        <div>
-          <FieldLabel>Install command</FieldLabel>
-          <TextInput value={installCmd} onChange={(e) => onInstallCmd(e.target.value)} placeholder="npm install" />
-        </div>
-      </div>
-
-      <div className="border-t border-gray-100 mt-4 pt-4">
-        <SectionHeading>Environment variables</SectionHeading>
-        <EnvVarEditor mainDomain={mainDomain} envs={envs} onChange={onEnvsChange} />
-      </div>
-    </Card>
+    </div>
   );
 }
+
+/* ── Wizard ─────────────────────────────────────────────────────── */
 
 export default function ComboshopVercelOnboarding() {
   const [step, setStep] = useState(1);
@@ -228,87 +351,82 @@ export default function ComboshopVercelOnboarding() {
   const [teamId, setTeamId] = useState("");
   const [framework, setFramework] = useState("nextjs");
   const [mainDomain, setMainDomain] = useState("");
+  const [errors, setErrors] = useState({});
+  const [copied, setCopied] = useState("");
 
-  const [sfName, setSfName] = useState("combostore-storefront");
-  const [sfBuild, setSfBuild] = useState("");
-  const [sfOutput, setSfOutput] = useState("");
-  const [sfInstall, setSfInstall] = useState("");
-  const [sfRoot, setSfRoot] = useState("");
-  const [sfEnvs, setSfEnvs] = useState([
-    { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
-    { key: "NEXT_PUBLIC_APP_URL", value: `${mainDomain}` },
-    { key: "API_TOKEN", value: "" },
-  ]);
-
-  const [dbName, setDbName] = useState("combostore-dashboard");
+  const [dbName, setDbName] = useState("combostore");
   const [dbBuild, setDbBuild] = useState("");
   const [dbOutput, setDbOutput] = useState("");
   const [dbInstall, setDbInstall] = useState("");
   const [dbRoot, setDbRoot] = useState("");
+  /*
+    APP_URL is what the storefront builds its canonical URLs and sitemaps from
+    and STORE_URL is what the admin screens link out to, so with one project
+    serving both they are the same origin - the root domain.
+
+    API_TOKEN came over with the storefront and now belongs to this project.
+  */
   const [dbEnvs, setDbEnvs] = useState([
     { key: "NEXT_PUBLIC_STORE_URL", value: `${mainDomain}` },
     { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
-    { key: "NEXT_PUBLIC_APP_URL", value: `dashboard.${mainDomain}` },
-
+    { key: "API_TOKEN", value: "" },
   ]);
 
-
-  const token = crypto.randomBytes(32).toString("hex");
-
+  /*
+    Generated once after mount rather than during render. It used to be a bare
+    `crypto.randomBytes()` call in the component body, so every render minted a
+    different token and each keystroke in the domain field rewrote the one the
+    operator was about to deploy with.
+  */
+  const [apiToken, setApiToken] = useState("");
 
   useEffect(() => {
+    setApiToken(crypto.randomBytes(32).toString("hex"));
+  }, []);
 
-    setSfEnvs([
-      { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
-      { key: "NEXT_PUBLIC_APP_URL", value: `${mainDomain}` },
-      { key: "API_TOKEN", value: token },
-    ])
+  useEffect(() => {
 
     setDbEnvs([
       { key: "NEXT_PUBLIC_STORE_URL", value: `${mainDomain}` },
       { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
-      { key: "NEXT_PUBLIC_APP_URL", value: `dashboard.${mainDomain}` },
-
+      { key: "API_TOKEN", value: apiToken },
     ])
 
-  }, [mainDomain]);
-
-
-
-
-
-
-
-
-
-
-
+  }, [mainDomain, apiToken]);
 
   const [logs, setLogs] = useState([]);
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState(false);
   const [deployError, setDeployError] = useState("");
 
-
-
-
-
-
-
-
-
-
-
-
-
-
   const addLog = useCallback((msg, type = "info") => {
     setLogs((prev) => [...prev, { msg, type }]);
   }, []);
 
+  /*
+    Pasting a URL into a domain field is the common slip, and Vercel rejects
+    `https://x.com/` with an opaque error - so the protocol, any path and a
+    trailing dot are trimmed off when the field loses focus rather than while
+    someone is still typing.
+  */
+  const normalizeDomain = () =>
+    setMainDomain((d) =>
+      d
+        .trim()
+        .replace(/^https?:\/\//i, "")
+        .replace(/\/.*$/, "")
+        .replace(/\.$/, "")
+        .toLowerCase()
+    );
+
+  /* Inline field errors, rather than an alert() that says one thing at a time
+     and leaves no marker on the field it is talking about. */
   const goStep2 = () => {
-    if (!vercelToken.trim()) { alert("Please enter your Vercel API token."); return; }
-    if (!mainDomain.trim()) { alert("Please enter your main domain."); return; }
+    const next = {};
+    if (!vercelToken.trim()) next.vercelToken = "A Vercel API token is required.";
+    if (!mainDomain.trim()) next.mainDomain = "Enter the domain this store will run on.";
+    setErrors(next);
+    if (Object.keys(next).length) return;
     setStep(2);
   };
 
@@ -334,34 +452,7 @@ export default function ComboshopVercelOnboarding() {
     const teamParam = teamId.trim() ? `?teamId=${teamId.trim()}` : "";
 
     try {
-      addLog("→ Creating storefront project...", "info");
-      const sfRes = await fetch(`https://api.vercel.com/v10/projects${teamParam}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          name: sfName,
-          framework: framework || null,
-          gitRepository: { type: "github", repo: STOREFRONT_REPO },
-          environmentVariables: buildEnvPayload(sfEnvs),
-          ...(sfBuild && { buildCommand: sfBuild }),
-          ...(sfOutput && { outputDirectory: sfOutput }),
-          ...(sfInstall && { installCommand: sfInstall }),
-          ...(sfRoot && { rootDirectory: sfRoot }),
-        }),
-      });
-      const sfData = await sfRes.json();
-      if (!sfRes.ok) throw new Error(`Storefront: ${sfData.error?.message || JSON.stringify(sfData)}`);
-      addLog(`✓ Storefront created — id: ${sfData.id}`, "ok");
-
-      addLog(`→ Assigning ${mainDomain} to storefront...`, "info");
-      const sfDomRes = await fetch(`https://api.vercel.com/v10/projects/${sfData.id}/domains${teamParam}`, {
-        method: "POST", headers, body: JSON.stringify({ name: mainDomain }),
-      });
-      const sfDomData = await sfDomRes.json();
-      if (!sfDomRes.ok) throw new Error(`Storefront domain: ${sfDomData.error?.message || JSON.stringify(sfDomData)}`);
-      addLog(`✓ ${mainDomain} assigned to storefront`, "ok");
-
-      addLog("→ Creating dashboard project...", "info");
+      addLog("Creating ComboStore project…", "info");
       const dbRes = await fetch(`https://api.vercel.com/v10/projects${teamParam}`, {
         method: "POST",
         headers,
@@ -377,21 +468,21 @@ export default function ComboshopVercelOnboarding() {
         }),
       });
       const dbData = await dbRes.json();
-      if (!dbRes.ok) throw new Error(`Dashboard: ${dbData.error?.message || JSON.stringify(dbData)}`);
-      addLog(`✓ Dashboard created — id: ${dbData.id}`, "ok");
+      if (!dbRes.ok) throw new Error(`ComboStore: ${dbData.error?.message || JSON.stringify(dbData)}`);
+      addLog(`Project created — id: ${dbData.id}`, "ok");
 
-      addLog(`→ Assigning dashboard.${mainDomain}...`, "info");
+      addLog(`Assigning ${mainDomain}…`, "info");
       const dbDomRes = await fetch(`https://api.vercel.com/v10/projects/${dbData.id}/domains${teamParam}`, {
-        method: "POST", headers, body: JSON.stringify({ name: `dashboard.${mainDomain}` }),
+        method: "POST", headers, body: JSON.stringify({ name: mainDomain }),
       });
       const dbDomData = await dbDomRes.json();
-      if (!dbDomRes.ok) throw new Error(`Dashboard domain: ${dbDomData.error?.message || JSON.stringify(dbDomData)}`);
-      addLog(`✓ dashboard.${mainDomain} assigned`, "ok");
-      addLog("✓ All done!", "ok");
+      if (!dbDomRes.ok) throw new Error(`Domain: ${dbDomData.error?.message || JSON.stringify(dbDomData)}`);
+      addLog(`${mainDomain} assigned`, "ok");
+      addLog("All done", "ok");
 
       setTimeout(() => { setDeploying(false); setDeployed(true); }, 700);
     } catch (err) {
-      addLog(`✗ ${err.message}`, "err");
+      addLog(err.message, "err");
       setDeployError(err.message);
       setDeploying(false);
     }
@@ -405,289 +496,441 @@ export default function ComboshopVercelOnboarding() {
     setMainDomain("");
     setLogs([]);
     setDeployError("");
+    setErrors({});
   };
 
-  const copyToClipboard = (text) => navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text, id) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(id);
+      setTimeout(() => setCopied(""), 1600);
+    } catch {
+      /* Clipboard is blocked without a secure context or permission; the URL
+         is on screen and selectable either way. */
+    }
+  };
+
+  const storeUrl = `https://${mainDomain}`;
+  const dashUrl = `https://${mainDomain}/dashboard`;
 
   /* ── Success screen ── */
   if (deployed) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-12 font-sans">
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 text-2xl mx-auto mb-4">
-            ✓
+      <Shell>
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+            <Check size={26} />
           </div>
-          <h1 className="text-2xl font-medium text-gray-900">Projects deployed</h1>
-          <p className="text-sm text-gray-500 mt-1">Both Vercel projects are live and domains are assigned.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            Project deployed
+          </h1>
+          <p className="mt-1.5 text-sm text-zinc-500">
+            The Vercel project is live and {mainDomain} is assigned.
+          </p>
         </div>
 
         <Card>
-          <SectionHeading>Project URLs</SectionHeading>
-
-          <p className="text-xs text-gray-400 mb-1">Storefront</p>
-          <div className="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2 font-mono text-xs text-gray-700 mb-3">
-            <span>https://{mainDomain}</span>
-            <button
-              onClick={() => copyToClipboard(`https://${mainDomain}`)}
-              className="text-blue-500 hover:text-blue-700 text-xs ml-4 transition-colors"
-            >
-              copy
-            </button>
+          <SectionHeading>PROJECT URLS</SectionHeading>
+          <div className="space-y-2.5">
+            <UrlRow
+              icon={Store}
+              label="Storefront"
+              url={storeUrl}
+              copied={copied === "store"}
+              onCopy={() => copyToClipboard(storeUrl, "store")}
+            />
+            <UrlRow
+              icon={LayoutDashboard}
+              label="Dashboard"
+              url={dashUrl}
+              copied={copied === "dash"}
+              onCopy={() => copyToClipboard(dashUrl, "dash")}
+            />
           </div>
 
-          <p className="text-xs text-gray-400 mb-1">Dashboard</p>
-          <div className="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2 font-mono text-xs text-gray-700">
-            <span>https://dashboard.{mainDomain}</span>
-            <button
-              onClick={() => copyToClipboard(`https://dashboard.${mainDomain}`)}
-              className="text-blue-500 hover:text-blue-700 text-xs ml-4 transition-colors"
-            >
-              copy
-            </button>
+          <div className="mt-4 rounded-xl bg-amber-50 px-3.5 py-3 text-xs leading-relaxed text-amber-900">
+            DNS still has to point at Vercel before these resolve. Vercel shows
+            the exact records on the project's Domains tab.
           </div>
         </Card>
 
-        <div className="flex justify-end">
-          <SecondaryButton onClick={reset}>Deploy another</SecondaryButton>
+        <div className="flex flex-wrap justify-end gap-2.5">
+          <button type="button" onClick={reset} className={BTN_SECONDARY}>
+            Deploy another
+          </button>
+          <a href={storeUrl} target="_blank" rel="noreferrer" className={BTN_PRIMARY}>
+            Open storefront
+            <ExternalLink size={15} />
+          </a>
         </div>
-      </div>
+      </Shell>
     );
   }
 
   /* ── Deploying screen ── */
   if (deploying) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-12 font-sans">
-        <h1 className="text-2xl font-medium text-gray-900 mb-1">Deploying…</h1>
-        <p className="text-sm text-gray-500 mb-6">Creating projects and assigning domains via Vercel API.</p>
+      <Shell>
+        <div className="mb-7 flex items-start gap-3.5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white">
+            <Loader2 size={18} className="animate-spin" />
+          </span>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              Deploying…
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              Creating the project and assigning the domain through the Vercel API.
+            </p>
+          </div>
+        </div>
 
         <Card>
-          <SectionHeading>Deploy log</SectionHeading>
-          <div className="bg-gray-50 rounded-lg p-3 font-mono text-xs max-h-48 overflow-y-auto space-y-1">
+          <SectionHeading>DEPLOY LOG</SectionHeading>
+          <div
+            style={FONT_MONO}
+            className="max-h-56 space-y-2 overflow-y-auto rounded-xl bg-zinc-950 p-4 text-xs">
+            {logs.length === 0 && (
+              <div className="text-zinc-500">Starting…</div>
+            )}
             {logs.map((l, i) => (
-              <div
-                key={i}
-                className={
-                  l.type === "ok" ? "text-emerald-600" :
-                    l.type === "err" ? "text-red-500" :
-                      "text-blue-500"
-                }
-              >
-                {l.msg}
+              <div key={i} className="flex items-start gap-2.5">
+                <span className="mt-0.5 shrink-0">
+                  {l.type === "ok" ? (
+                    <Check size={12} className="text-emerald-400" />
+                  ) : l.type === "err" ? (
+                    <CircleAlert size={12} className="text-red-400" />
+                  ) : (
+                    <span className="block size-1.5 translate-y-1 rounded-full bg-zinc-500" />
+                  )}
+                </span>
+                <span
+                  className={
+                    l.type === "ok"
+                      ? "text-emerald-300"
+                      : l.type === "err"
+                        ? "text-red-300"
+                        : "text-zinc-400"
+                  }>
+                  {l.msg}
+                </span>
               </div>
             ))}
-            {logs.length === 0 && <div className="text-gray-400">Starting…</div>}
           </div>
 
           {deployError && (
-            <div className="mt-4 flex justify-start">
-              <SecondaryButton onClick={() => { setDeploying(false); setStep(3); }}>
-                ← Back to review
-              </SecondaryButton>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => { setDeploying(false); setStep(3); }}
+                className={BTN_SECONDARY}>
+                <ArrowLeft size={15} />
+                Back to review
+              </button>
             </div>
           )}
         </Card>
-      </div>
+      </Shell>
     );
   }
 
   /* ── Main wizard ── */
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12 font-sans">
+    <Shell step={step}>
 
-      {/* Step 1 — Credentials & Domain */}
+      {/* Step 1 — Credentials & domain */}
       {step === 1 && (
         <>
-          <h1 className="text-2xl font-medium text-gray-900 mb-1">Deploy ComboStore to Vercel</h1>
-          <p className="text-sm text-gray-500 mb-6">
-            Set up storefront and dashboard projects from your GitHub repos in one go.
+          <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-zinc-900">
+            Deploy ComboStore to Vercel
+          </h1>
+          <p className="mb-7 text-sm text-zinc-500">
+            One project, created from your GitHub repo and wired to your domain.
           </p>
-          <StepBar step={1} />
 
+          <Stepper step={1} />
 
           <Card>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M8 1L1 14h14L8 1z" fill="#3B82F6" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-900">Setup WordPress</div>
-                <div className="text-xs text-gray-400">Required to create server</div>
-              </div>
+            <CardHead
+              icon={Server}
+              tone="zinc"
+              title="Set up WordPress first"
+              desc="ComboStore reads its data from a WordPress install — add these three plugins before deploying."
+            />
+            <div className="space-y-2">
+              {WP_PLUGINS.map((p) => (
+                <a
+                  key={p.href}
+                  href={p.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 px-3.5 py-3 transition-colors hover:border-zinc-300 hover:bg-zinc-50">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-zinc-900">
+                      {p.name}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      {p.note}
+                    </span>
+                  </span>
+                  <ExternalLink size={14} className="shrink-0 text-zinc-400" />
+                </a>
+              ))}
             </div>
-
-            <div className="text-xs text-gray-400 mt-2 flex flex-col gap-3">
-              <p>Install following plugins</p>
-              <div><a className="text-blue-500 font-medium" href="https://github.com/pickplugins/combostore-server">Combo Store - Server</a> </div>
-              <div><a className="text-blue-500 font-medium" href="https://wordpress.org/plugins/enable-cors/">Enable CORS</a> </div>
-              <div><a className="text-blue-500 font-medium" href="https://wordpress.org/plugins/jwt-authentication-for-wp-rest-api/">JWT Authentication for WP REST API
-              </a> </div>
-
-
-
-
-            </div>
-
-
           </Card>
 
-
-
-
-
-
-
-          {/* Vercel credentials */}
           <Card>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M8 1L1 14h14L8 1z" fill="#3B82F6" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-900">Vercel credentials</div>
-                <div className="text-xs text-gray-400">Required to create and manage projects via API</div>
-              </div>
-            </div>
+            <CardHead
+              icon={KeyRound}
+              title="Vercel credentials"
+              desc="Used to create the project and assign the domain through the API."
+            />
 
             <div className="mb-4">
-              <FieldLabel>Vercel API token</FieldLabel>
+              <FieldLabel htmlFor="vercel-token">Vercel API token</FieldLabel>
               <div className="flex gap-2">
                 <input
+                  id="vercel-token"
                   type={tokenVisible ? "text" : "password"}
                   value={vercelToken}
-                  onChange={(e) => setVercelToken(e.target.value)}
+                  onChange={(e) => {
+                    setVercelToken(e.target.value);
+                    if (errors.vercelToken) setErrors((p) => ({ ...p, vercelToken: "" }));
+                  }}
                   placeholder="paste your Vercel token…"
-                  className="flex-1 text-sm font-mono px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                  aria-invalid={!!errors.vercelToken}
+                  style={FONT_MONO}
+                  className={`${INPUT} ${errors.vercelToken ? INPUT_INVALID : ""}`}
                 />
                 <button
+                  type="button"
                   onClick={() => setTokenVisible((v) => !v)}
-                  className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 hover:bg-gray-50 transition whitespace-nowrap"
-                >
-                  {tokenVisible ? "hide" : "show"}
+                  aria-label={tokenVisible ? "Hide token" : "Show token"}
+                  className={`${BTN_SECONDARY} !px-3`}>
+                  {tokenVisible ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">
-                Get it from{" "}
+              <FieldError>{errors.vercelToken}</FieldError>
+              <p className="mt-1.5 text-xs text-zinc-500">
+                Create one at{" "}
                 <a
                   href="https://vercel.com/account/tokens"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-blue-500 hover:underline"
-                >
+                  className="font-medium text-emerald-700 hover:underline">
                   vercel.com/account/tokens
                 </a>
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <FieldLabel>
+                <FieldLabel htmlFor="team-id">
                   Team ID{" "}
-                  <span className="font-normal text-gray-300">(optional)</span>
+                  <span className="font-normal text-zinc-400">(optional)</span>
                 </FieldLabel>
-                <TextInput
+                <input
+                  id="team-id"
                   value={teamId}
                   onChange={(e) => setTeamId(e.target.value)}
                   placeholder="team_xxxxxxxxxxxx"
-                  mono
+                  style={FONT_MONO}
+                  className={INPUT}
                 />
               </div>
               <div>
-                <FieldLabel>Framework preset</FieldLabel>
-                <SelectInput value={framework} onChange={(e) => setFramework(e.target.value)}>
-                  <option value="nextjs">Next.js</option>
-                  <option value="nuxtjs">Nuxt.js</option>
-                  <option value="remix">Remix</option>
-                  <option value="vite">Vite</option>
-                  <option value="">Other / auto-detect</option>
-                </SelectInput>
+                <FieldLabel htmlFor="framework">Framework preset</FieldLabel>
+                <div className="relative">
+                  <select
+                    id="framework"
+                    value={framework}
+                    onChange={(e) => setFramework(e.target.value)}
+                    className={`${SELECT} !pr-9`}>
+                    <option value="nextjs">Next.js</option>
+                    <option value="nuxtjs">Nuxt.js</option>
+                    <option value="remix">Remix</option>
+                    <option value="vite">Vite</option>
+                    <option value="">Other / auto-detect</option>
+                  </select>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
+                    ▾
+                  </span>
+                </div>
               </div>
             </div>
           </Card>
 
-          {/* Domain */}
           <Card>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full bg-violet-50 flex items-center justify-center shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-900">Main domain</div>
-                <div className="text-xs text-gray-400">Your customer's root domain</div>
-              </div>
-            </div>
-
-            <FieldLabel>Domain name</FieldLabel>
-            <TextInput
-              value={mainDomain}
-              onChange={(e) => setMainDomain(e.target.value)}
-              placeholder="e.g. mystore.com"
+            <CardHead
+              icon={Globe}
+              tone="violet"
+              title="Main domain"
+              desc="The root domain your customer's store will run on."
             />
-            {mainDomain && (
-              <div className="text-xs text-gray-400 mt-2 flex flex-col gap-3">
-                <div>Storefront →{" "} <span className="text-blue-500 font-medium">{mainDomain}</span> </div>
-                <div>Dashboard →{" "}  <span className="text-blue-500 font-medium">dashboard.{mainDomain}</span></div>
-                <div>Server →{" "}  <span className="text-blue-500 font-medium">server.{mainDomain} </span> {`(WordPress)`}</div>
 
+            <FieldLabel htmlFor="main-domain">Domain name</FieldLabel>
+            <input
+              id="main-domain"
+              value={mainDomain}
+              onChange={(e) => {
+                setMainDomain(e.target.value);
+                if (errors.mainDomain) setErrors((p) => ({ ...p, mainDomain: "" }));
+              }}
+              onBlur={normalizeDomain}
+              placeholder="mystore.com"
+              aria-invalid={!!errors.mainDomain}
+              className={`${INPUT} ${errors.mainDomain ? INPUT_INVALID : ""}`}
+            />
+            <FieldError>{errors.mainDomain}</FieldError>
 
-
+            {mainDomain && !errors.mainDomain && (
+              <div className="mt-4 space-y-2 rounded-xl bg-zinc-50 p-3.5">
+                {[
+                  { icon: Store, label: "Storefront", value: mainDomain },
+                  { icon: LayoutDashboard, label: "Dashboard", value: `${mainDomain}/dashboard` },
+                  { icon: Server, label: "Server", value: `server.${mainDomain}`, hint: "WordPress" },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center gap-2.5 text-xs">
+                    <row.icon size={13} className="shrink-0 text-zinc-400" />
+                    <span className="w-20 shrink-0 text-zinc-500">{row.label}</span>
+                    <span
+                      style={FONT_MONO}
+                      className="min-w-0 flex-1 truncate font-medium text-zinc-800">
+                      {row.value}
+                    </span>
+                    {row.hint && (
+                      <span className="shrink-0 text-zinc-400">{row.hint}</span>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </Card>
 
           <div className="flex justify-end">
-            <div className="text-white! bg-blue-600 px-3 py-2 rounded-sm cursor-pointer" onClick={goStep2}>Continue →</div>
+            <button type="button" onClick={goStep2} className={BTN_PRIMARY}>
+              Continue
+              <ArrowRight size={15} />
+            </button>
           </div>
         </>
       )}
 
-      {/* Step 2 — Configure projects */}
+      {/* Step 2 — Configure the project */}
       {step === 2 && (
         <>
-          <h1 className="text-2xl font-medium text-gray-900 mb-1">Configure projects</h1>
-          <p className="text-sm text-gray-500 mb-6">
-            Each repo becomes a separate Vercel project with its own domain and build settings.
+          <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-zinc-900">
+            Configure project
+          </h1>
+          <p className="mb-7 text-sm text-zinc-500">
+            The repo becomes one Vercel project on your main domain, serving the
+            storefront and the dashboard.
           </p>
-          <StepBar step={2} />
 
-          <ProjectCard
-            badge="Storefront" color="teal"
-            repo={STOREFRONT_REPO}
-            repoUrl={`https://github.com/${STOREFRONT_REPO}`}
-            projectName={sfName} onProjectNameChange={setSfName}
-            domain={mainDomain} domainLabel="main domain"
-            mainDomain={mainDomain}
-            buildCmd={sfBuild} onBuildCmd={setSfBuild}
-            outputDir={sfOutput} onOutputDir={setSfOutput}
-            installCmd={sfInstall} onInstallCmd={setSfInstall}
-            rootDir={sfRoot} onRootDir={setSfRoot}
-            envs={sfEnvs} onEnvsChange={setSfEnvs}
-          />
+          <Stepper step={2} />
 
-          <ProjectCard
-            badge="Dashboard" color="blue"
-            repo={DASHBOARD_REPO}
-            repoUrl={`https://github.com/${DASHBOARD_REPO}`}
-            projectName={dbName} onProjectNameChange={setDbName}
-            domain={`dashboard.${mainDomain}`} domainLabel="dashboard subdomain"
-            mainDomain={mainDomain}
-            buildCmd={dbBuild} onBuildCmd={setDbBuild}
-            outputDir={dbOutput} onOutputDir={setDbOutput}
-            installCmd={dbInstall} onInstallCmd={setDbInstall}
-            rootDir={dbRoot} onRootDir={setDbRoot}
-            envs={dbEnvs} onEnvsChange={setDbEnvs}
-          />
+          <Card>
+            <div className="mb-5 flex flex-wrap items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Rocket size={17} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold tracking-tight text-zinc-900">
+                  {dbName || "Untitled project"}
+                </div>
+                <a
+                  href={`https://github.com/${DASHBOARD_REPO}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={FONT_MONO}
+                  className="mt-0.5 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-emerald-700 hover:underline">
+                  {DASHBOARD_REPO}
+                  <ExternalLink size={11} />
+                </a>
+              </div>
+              <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">
+                main domain
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <FieldLabel htmlFor="project-name">Project name in Vercel</FieldLabel>
+                <input
+                  id="project-name"
+                  value={dbName}
+                  onChange={(e) => setDbName(e.target.value)}
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="assigned-domain">Assigned domain</FieldLabel>
+                <input
+                  id="assigned-domain"
+                  value={mainDomain}
+                  readOnly
+                  className={INPUT_READONLY}
+                />
+              </div>
+            </div>
+
+            {/*
+              Build overrides are empty for a stock Next.js repo and Vercel
+              detects all four, so they are folded away rather than presented as
+              four more fields to reason about.
+            */}
+            <details className="group mt-4 rounded-xl border border-zinc-200">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3.5 py-3 text-xs font-medium text-zinc-600 transition-colors hover:text-zinc-900 [&::-webkit-details-marker]:hidden">
+                Build &amp; output settings
+                <span className="text-zinc-400 transition-transform group-open:rotate-180">
+                  ▾
+                </span>
+              </summary>
+              <div className="border-t border-zinc-200 p-3.5">
+                <p className="mb-3 text-xs text-zinc-500">
+                  Leave blank to let Vercel detect them from the repo.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <FieldLabel htmlFor="root-dir">Root directory</FieldLabel>
+                    <input id="root-dir" value={dbRoot} onChange={(e) => setDbRoot(e.target.value)} placeholder="/ (default)" className={INPUT} />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="build-cmd">Build command</FieldLabel>
+                    <input id="build-cmd" value={dbBuild} onChange={(e) => setDbBuild(e.target.value)} placeholder="npm run build" className={INPUT} />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="output-dir">Output directory</FieldLabel>
+                    <input id="output-dir" value={dbOutput} onChange={(e) => setDbOutput(e.target.value)} placeholder=".next" className={INPUT} />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="install-cmd">Install command</FieldLabel>
+                    <input id="install-cmd" value={dbInstall} onChange={(e) => setDbInstall(e.target.value)} placeholder="npm install" className={INPUT} />
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <div className="mt-5 border-t border-zinc-200 pt-5">
+              <EnvVarEditor
+                envs={dbEnvs}
+                onChange={setDbEnvs}
+                onRegenerateToken={() =>
+                  setApiToken(crypto.randomBytes(32).toString("hex"))
+                }
+              />
+            </div>
+          </Card>
 
           <div className="flex justify-end gap-2.5">
-            <SecondaryButton onClick={() => setStep(1)}>← Back</SecondaryButton>
-            <div onClick={() => setStep(3)} className="cursor-pointer px-3 py-2 rounded-sm bg-blue-500 text-white">Review & Deploy →</div>
+            <button type="button" onClick={() => setStep(1)} className={BTN_SECONDARY}>
+              <ArrowLeft size={15} />
+              Back
+            </button>
+            <button type="button" onClick={() => setStep(3)} className={BTN_PRIMARY}>
+              Review &amp; deploy
+              <ArrowRight size={15} />
+            </button>
           </div>
         </>
       )}
@@ -695,68 +938,71 @@ export default function ComboshopVercelOnboarding() {
       {/* Step 3 — Review */}
       {step === 3 && (
         <>
-          <h1 className="text-2xl font-medium text-gray-900 mb-1">Review & deploy</h1>
-          <p className="text-sm text-gray-500 mb-6">
-            Confirm the details before Vercel projects are created via API.
+          <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-zinc-900">
+            Review &amp; deploy
+          </h1>
+          <p className="mb-7 text-sm text-zinc-500">
+            Confirm the details before the project is created through the Vercel API.
           </p>
-          <StepBar step={3} />
 
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800 mb-4 space-y-1.5">
-            <div>
-              <span className="font-medium">Storefront:</span>{" "}
-              <code className="text-xs bg-blue-100 px-1.5 py-0.5 rounded">{sfName}</code>
-              {" → "}
-              <code className="text-xs bg-blue-100 px-1.5 py-0.5 rounded">{mainDomain}</code>
-            </div>
-            <div>
-              <span className="font-medium">Dashboard:</span>{" "}
-              <code className="text-xs bg-blue-100 px-1.5 py-0.5 rounded">{dbName}</code>
-              {" → "}
-              <code className="text-xs bg-blue-100 px-1.5 py-0.5 rounded">dashboard.{mainDomain}</code>
-            </div>
-            <div>
-              <span className="font-medium">GitHub org:</span>{" "}
-              <code className="text-xs bg-blue-100 px-1.5 py-0.5 rounded">pickplugins</code>
-              {" · Framework: "}
-              <code className="text-xs bg-blue-100 px-1.5 py-0.5 rounded">{framework || "auto-detect"}</code>
-            </div>
-          </div>
+          <Stepper step={3} />
+
+          <Card className="!bg-zinc-950 !border-zinc-800">
+            <SectionHeading>
+              <span className="text-zinc-500">SUMMARY</span>
+            </SectionHeading>
+            <dl className="space-y-2.5 text-sm">
+              {[
+                { k: "Project", v: dbName },
+                { k: "Repository", v: DASHBOARD_REPO },
+                { k: "Storefront", v: mainDomain },
+                { k: "Dashboard", v: `${mainDomain}/dashboard` },
+                { k: "Framework", v: framework || "auto-detect" },
+                { k: "Variables", v: `${buildEnvPayload(dbEnvs).length} injected` },
+              ].map((row) => (
+                <div key={row.k} className="flex items-baseline gap-3">
+                  <dt className="w-24 shrink-0 text-xs text-zinc-500">{row.k}</dt>
+                  <dd
+                    style={FONT_MONO}
+                    className="min-w-0 flex-1 truncate text-xs text-zinc-100">
+                    {row.v}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
 
           <Card>
-            <SectionHeading>What will happen</SectionHeading>
-            <ul className="space-y-3 text-sm text-gray-700">
+            <SectionHeading>WHAT WILL HAPPEN</SectionHeading>
+            <ul className="space-y-3">
               {[
-                {
-                  icon: "✓", color: "text-emerald-500",
-                  text: <>Create storefront project from <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">{STOREFRONT_REPO}</code> and assign to main domain</>
-                },
-                {
-                  icon: "✓", color: "text-emerald-500",
-                  text: <>Create dashboard project from <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">{DASHBOARD_REPO}</code> and assign to <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">dashboard.*</code> subdomain</>
-                },
-                {
-                  icon: "→", color: "text-blue-400",
-                  text: "Environment variables will be injected into each project before first deploy"
-                },
-                {
-                  icon: "→", color: "text-blue-400",
-                  text: "Vercel will trigger initial deployments automatically on project creation"
-                },
-              ].map((item, i) => (
-                <li key={i} className="flex gap-2.5 items-start">
-                  <span className={`${item.color} font-semibold mt-0.5 shrink-0`}>{item.icon}</span>
-                  <span>{item.text}</span>
+                <>Create the project from <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{DASHBOARD_REPO}</code> and assign it to <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{mainDomain}</code></>,
+                <>Serve the storefront at <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">/</code> and the dashboard at <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">/dashboard</code> from that one project</>,
+                "Inject the environment variables before the first build",
+                "Vercel triggers the initial deployment automatically on creation",
+              ].map((text, i) => (
+                <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-700">
+                  <span className="mt-0.5 flex size-4.5 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                    <Check size={11} className="text-emerald-700" />
+                  </span>
+                  <span className="min-w-0">{text}</span>
                 </li>
               ))}
             </ul>
           </Card>
 
           <div className="flex justify-end gap-2.5">
-            <SecondaryButton onClick={() => setStep(2)}>← Edit</SecondaryButton>
-            <PrimaryButton onClick={deploy}>Deploy both projects</PrimaryButton>
+            <button type="button" onClick={() => setStep(2)} className={BTN_SECONDARY}>
+              <ArrowLeft size={15} />
+              Edit
+            </button>
+            <button type="button" onClick={deploy} className={BTN_PRIMARY}>
+              <Rocket size={15} />
+              Deploy project
+            </button>
           </div>
         </>
       )}
-    </div>
+    </Shell>
   );
 }
