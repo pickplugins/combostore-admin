@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Hind_Siliguri } from "next/font/google";
 import {
   ArrowRight,
   Boxes,
@@ -22,6 +23,8 @@ import {
   Zap,
 } from "lucide-react";
 
+import { LocaleProvider, LOCALES, useI18n } from "./i18n";
+
 /*
   Marketing landing page for ComboStore.
 
@@ -31,132 +34,76 @@ import {
   differentiator and keep a section of their own; they are no longer the
   page's whole visual identity.
 
-  Typography comes from the Geist variables the root layout already loads, so
-  there is no render-blocking @import here. `globals.css` sets `body` to Arial
-  and styles every bare `<button>`, so the root sets its own font-family and
-  the one real button carries `!` overrides.
+  BILINGUAL
+
+  Every string comes from `messages/en.json` and `messages/bn.json` through
+  `components/i18n.jsx`; nothing user-facing is hard-coded here. The arrays
+  below keep only what is not copy - the icon, the anchor, the ordering - and
+  name a key the catalogue fills in.
+
+  Two things change with the locale beyond the words:
+
+    - Geist carries no Bengali glyphs, so Hind Siliguri is loaded and sits
+      first in the font stack under `bn`. It stays last in the stack under
+      `en` so the one Bangla string on the English page (the AI panel's
+      "write in Bangla" chip) still has a real font to resolve against.
+    - Bangla needs more leading and no negative tracking: `tracking-tight` on
+      a 3.4rem headline clips the ascenders, so the heading classes swap.
+
+  Typography otherwise comes from the Geist variables the root layout already
+  loads, so there is no render-blocking @import here. `globals.css` sets `body`
+  to Arial and styles every bare `<button>`, so the root sets its own
+  font-family and the real buttons carry `!` overrides.
 */
 
+const bangla = Hind_Siliguri({
+  subsets: ["bengali", "latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-bangla",
+  display: "swap",
+});
+
+/* Icon and catalogue key only - the title and description are translated. */
 const FEATURES = [
-  {
-    icon: ClipboardList,
-    title: "Order management",
-    desc: "Every order from placed to delivered, with status your team and your customer both see.",
-  },
-  {
-    icon: Package,
-    title: "Product management",
-    desc: "Variants, categories and pricing in the WordPress editor, published straight to the storefront.",
-  },
-  {
-    icon: Boxes,
-    title: "Stock management",
-    desc: "Live counts across warehouses, with low-stock alerts before a listing goes dark.",
-  },
-  {
-    icon: Receipt,
-    title: "Purchases & expenses",
-    desc: "Log supplier invoices and running costs so margin is a number, not a guess.",
-  },
-  {
-    icon: Truck,
-    title: "Delivery management",
-    desc: "Assign riders or courier partners, print labels, and push live status to buyers.",
-  },
-  {
-    icon: Wallet,
-    title: "Local payments",
-    desc: "Cash on Delivery, bKash, Nagad and Rocket wired into checkout — no plugin stack to assemble.",
-  },
-  {
-    icon: Headset,
-    title: "Support tickets",
-    desc: "Questions and complaints in one queue, with the full order history attached.",
-  },
-  {
-    icon: Sparkles,
-    title: "AI content assistant",
-    desc: "Draft product descriptions and blog posts in seconds, in Bangla or English.",
-  },
-  {
-    icon: ImageIcon,
-    title: "Media library",
-    desc: "Product photos and video in one place, optimised automatically for fast pages.",
-  },
+  { key: "orders", icon: ClipboardList },
+  { key: "products", icon: Package },
+  { key: "stock", icon: Boxes },
+  { key: "purchases", icon: Receipt },
+  { key: "delivery", icon: Truck },
+  { key: "payments", icon: Wallet },
+  { key: "support", icon: Headset },
+  { key: "ai", icon: Sparkles },
+  { key: "media", icon: ImageIcon },
 ];
 
 const NAV_LINKS = [
-  { label: "Platform", href: "#platform" },
-  { label: "Features", href: "#features" },
-  { label: "AI", href: "#ai" },
-  { label: "Payments", href: "#payments" },
+  { key: "platform", href: "#platform" },
+  { key: "features", href: "#features" },
+  { key: "ai", href: "#ai" },
+  { key: "payments", href: "#payments" },
 ];
 
 const STACK = [
-  {
-    step: "01",
-    kicker: "Admin & content",
-    title: "WordPress",
-    desc: "Your team works in the editor it already knows. The ComboStore plugin adds the commerce models, roles and a REST layer on top of it.",
-  },
-  {
-    step: "02",
-    kicker: "Commerce engine",
-    title: "ComboStore API",
-    desc: "Order logic, stock sync, payment rails and delivery routing run through one API layer — the storefront never touches the database.",
-  },
-  {
-    step: "03",
-    kicker: "Customer-facing",
-    title: "Next.js storefront",
-    desc: "Server-rendered category and product pages, incremental revalidation, and a checkout that still works on a slow connection.",
-  },
+  { key: "wordpress", step: "01" },
+  { key: "api", step: "02" },
+  { key: "storefront", step: "03" },
 ];
 
 const PAYMENTS = [
-  {
-    name: "bKash",
-    desc: "Direct checkout integration, no separate plugin to license.",
-    accent: "text-pink-600",
-    ring: "ring-pink-100",
-  },
-  {
-    name: "Nagad",
-    desc: "Instant payment confirmation the moment checkout completes.",
-    accent: "text-orange-600",
-    ring: "ring-orange-100",
-  },
-  {
-    name: "Rocket",
-    desc: "Mobile banking, configured and ready from day one.",
-    accent: "text-violet-600",
-    ring: "ring-violet-100",
-  },
-  {
-    name: "Cash on Delivery",
-    desc: "With delivery confirmation built into the rider workflow.",
-    accent: "text-emerald-600",
-    ring: "ring-emerald-100",
-  },
+  { key: "bkash", accent: "text-pink-600", ring: "ring-pink-100" },
+  { key: "nagad", accent: "text-orange-600", ring: "ring-orange-100" },
+  { key: "rocket", accent: "text-violet-600", ring: "ring-violet-100" },
+  { key: "cod", accent: "text-emerald-600", ring: "ring-emerald-100" },
 ];
 
 /*
   Counts taken from what the platform actually ships, not benchmark numbers -
-  nothing here is a performance claim the page cannot stand behind.
+  nothing here is a performance claim the page cannot stand behind. The values
+  live in the catalogue too, so Bangla gets Bengali numerals.
 */
-const PROOF = [
-  { value: "9", label: "Modules included" },
-  { value: "4", label: "Payment methods" },
-  { value: "1", label: "Click to deploy" },
-  { value: "2", label: "Languages supported" },
-];
+const PROOF = ["modules", "payments", "deploy", "languages"];
 
-const AI_POINTS = [
-  "Product descriptions drafted from photos and specs",
-  "Blog posts for SEO and seasonal campaigns",
-  "Writes in Bangla and English",
-  "Every draft stays editable before it publishes",
-];
+const AI_POINTS = ["descriptions", "blog", "bilingual", "editable"];
 
 function SectionLabel({ children, tone = "light" }) {
   const styles =
@@ -186,14 +133,51 @@ function Logo({ tone = "light" }) {
   );
 }
 
+/*
+  Language switch. A two-option segmented control rather than a dropdown: with
+  exactly two locales a select costs an extra click and hides the alternative.
+  `globals.css` styles every bare <button>, hence the `!` overrides.
+*/
+function LanguageSwitch({ className = "" }) {
+  const { locale, setLocale, t } = useI18n();
+
+  return (
+    <div
+      role="group"
+      aria-label={t("landing.nav.language")}
+      className={`inline-flex shrink-0 items-center rounded-lg border border-zinc-200 bg-zinc-50 p-0.5 ${className}`}>
+      {LOCALES.map((item) => {
+        const active = item.code === locale;
+        return (
+          <button
+            key={item.code}
+            type="button"
+            lang={item.code}
+            onClick={() => setLocale(item.code)}
+            aria-pressed={active}
+            title={item.label}
+            className={`!rounded-md !border-0 !px-2.5 !py-1 !text-xs !font-medium !shadow-none transition-colors ${active
+              ? "!bg-white !text-zinc-900 !shadow-sm"
+              : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
+              }`}>
+            {item.short}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* Illustrative storefront UI. Decorative, so it is hidden from screen
    readers rather than described - the copy beside it carries the meaning. */
 function StorefrontMock() {
+  const { t } = useI18n();
+
   const products = [
-    { tone: "bg-emerald-100", bar: "w-3/4", price: "৳1,450" },
-    { tone: "bg-amber-100", bar: "w-2/3", price: "৳890" },
-    { tone: "bg-sky-100", bar: "w-4/5", price: "৳2,100" },
-    { tone: "bg-rose-100", bar: "w-1/2", price: "৳640" },
+    { tone: "bg-emerald-100", bar: "w-3/4", price: t("landing.mock.price1") },
+    { tone: "bg-amber-100", bar: "w-2/3", price: t("landing.mock.price2") },
+    { tone: "bg-sky-100", bar: "w-4/5", price: t("landing.mock.price3") },
+    { tone: "bg-rose-100", bar: "w-1/2", price: t("landing.mock.price4") },
   ];
 
   return (
@@ -208,7 +192,7 @@ function StorefrontMock() {
           <span className="size-2.5 rounded-full bg-zinc-300" />
           <div className="ml-2 flex flex-1 items-center gap-1.5 rounded-md bg-white px-2.5 py-1 text-[11px] text-zinc-400 ring-1 ring-zinc-200">
             <ShieldCheck size={11} className="text-emerald-500" />
-            yourstore.com
+            {t("landing.mock.url")}
           </div>
         </div>
 
@@ -240,7 +224,7 @@ function StorefrontMock() {
                   {p.price}
                 </span>
                 <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[8px] font-semibold tracking-wide text-emerald-700">
-                  IN STOCK
+                  {t("landing.mock.inStock")}
                 </span>
               </div>
             </div>
@@ -259,10 +243,10 @@ function StorefrontMock() {
         </span>
         <span className="text-left">
           <span className="block text-[11px] font-semibold text-zinc-900">
-            Order #1042
+            {t("landing.mock.orderNo")}
           </span>
           <span className="block text-[10px] text-zinc-500">
-            Paid with bKash
+            {t("landing.mock.paidWith")}
           </span>
         </span>
       </div>
@@ -273,10 +257,10 @@ function StorefrontMock() {
         </span>
         <span className="text-left">
           <span className="block text-[11px] font-semibold text-zinc-900">
-            Static + revalidated
+            {t("landing.mock.staticTitle")}
           </span>
           <span className="block text-[10px] text-zinc-500">
-            Served from the edge
+            {t("landing.mock.staticDesc")}
           </span>
         </span>
       </div>
@@ -285,13 +269,31 @@ function StorefrontMock() {
   );
 }
 
-export default function ComboStoreLanding() {
+function LandingContent() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { t, isBangla } = useI18n();
+
+  /*
+    Bangla sits lower on the line and has no use for negative tracking, so the
+    display sizes relax rather than tighten. Everything else is shared.
+  */
+  const h1Type = isBangla
+    ? "leading-[1.35] tracking-normal"
+    : "leading-[1.08] tracking-tight";
+  const h2Type = isBangla ? "leading-snug tracking-normal" : "tracking-tight";
+  const headingType = isBangla ? "tracking-normal" : "tracking-tight";
+  const footerHeadingType = isBangla
+    ? "tracking-normal"
+    : "tracking-wider";
+
+  const fontStack = isBangla
+    ? "var(--font-bangla), var(--font-geist-sans), system-ui, sans-serif"
+    : "var(--font-geist-sans), var(--font-bangla), system-ui, sans-serif";
 
   return (
     <div
-      className="min-h-screen w-full bg-white text-zinc-900 antialiased"
-      style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}>
+      className={`${bangla.variable} min-h-screen w-full bg-white text-zinc-900 antialiased`}
+      style={{ fontFamily: fontStack }}>
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white/85 backdrop-blur-md">
@@ -307,29 +309,37 @@ export default function ComboStoreLanding() {
                 key={link.href}
                 href={link.href}
                 className="transition-colors hover:text-zinc-900">
-                {link.label}
+                {t(`landing.nav.${link.key}`)}
               </a>
             ))}
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
+            <LanguageSwitch />
             <a
               href="/onboard"
               className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700">
-              Deploy on Vercel
+              {t("landing.nav.deploy")}
               <ArrowRight size={14} />
             </a>
           </div>
 
-          {/* `globals.css` styles every bare <button>, hence the overrides. */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-expanded={menuOpen}
-            aria-label="Toggle navigation"
-            className="!rounded-lg !border !border-zinc-200 !bg-white !p-2 !text-zinc-700 !shadow-none md:!hidden">
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
+          {/*
+            On phones the switch sits beside the menu toggle rather than inside
+            the drawer, so changing language never costs an extra tap.
+          */}
+          <div className="flex items-center gap-2 md:hidden">
+            <LanguageSwitch />
+            {/* `globals.css` styles every bare <button>, hence the overrides. */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={menuOpen}
+              aria-label={t("landing.nav.toggleMenu")}
+              className="!rounded-lg !border !border-zinc-200 !bg-white !p-2 !text-zinc-700 !shadow-none">
+              {menuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          </div>
 
         </nav>
 
@@ -342,14 +352,14 @@ export default function ComboStoreLanding() {
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
                   className="rounded-lg px-2 py-2.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900">
-                  {link.label}
+                  {t(`landing.nav.${link.key}`)}
                 </a>
               ))}
               <a
                 href="/onboard"
                 onClick={() => setMenuOpen(false)}
                 className="mt-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-center text-sm font-medium text-white">
-                Deploy on Vercel
+                {t("landing.nav.deploy")}
               </a>
             </div>
           </div>
@@ -366,42 +376,43 @@ export default function ComboStoreLanding() {
           <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-6 py-16 lg:grid-cols-[1.05fr_1fr] lg:py-24">
 
             <div>
-              <SectionLabel>Headless commerce · WordPress + Next.js</SectionLabel>
+              <SectionLabel>{t("landing.hero.label")}</SectionLabel>
 
-              <h1 className="mb-5 text-4xl font-semibold leading-[1.08] tracking-tight text-zinc-900 sm:text-5xl lg:text-[3.4rem]">
-                The ecommerce platform that keeps{" "}
-                <span className="text-emerald-600">WordPress</span> behind the
-                counter.
+              <h1
+                className={`mb-5 text-4xl font-semibold text-zinc-900 sm:text-5xl lg:text-[3.4rem] ${h1Type}`}>
+                {t("landing.hero.titleBefore")}
+                <span className="text-emerald-600">
+                  {t("landing.hero.titleHighlight")}
+                </span>
+                {t("landing.hero.titleAfter")}
               </h1>
 
               <p className="mb-8 max-w-lg text-lg leading-relaxed text-zinc-600">
-                ComboStore puts a Next.js storefront in front of the WordPress
-                admin your team already runs — one deploy, nine business
-                modules, and the payment methods your customers actually use.
+                {t("landing.hero.body")}
               </p>
 
               <div className="mb-6 flex flex-wrap gap-3">
                 <a
                   href="/onboard"
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition-colors hover:bg-emerald-700">
-                  Deploy on Vercel
+                  {t("landing.hero.ctaPrimary")}
                   <ArrowRight size={16} />
                 </a>
                 <a
                   href="#platform"
                   className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-6 py-3.5 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-400 hover:bg-zinc-50">
-                  See how it works
+                  {t("landing.hero.ctaSecondary")}
                 </a>
               </div>
 
               <p className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-zinc-500">
                 <span className="inline-flex items-center gap-1.5">
                   <Check size={14} className="text-emerald-600" />
-                  No card required
+                  {t("landing.hero.noCard")}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Check size={14} className="text-emerald-600" />
-                  Setup support in Bangla &amp; English
+                  {t("landing.hero.support")}
                 </span>
               </p>
             </div>
@@ -416,12 +427,15 @@ export default function ComboStoreLanding() {
         {/* ── Proof band ── */}
         <section className="border-b border-zinc-200 bg-zinc-50">
           <div className="mx-auto grid max-w-6xl grid-cols-2 gap-px overflow-hidden px-6 py-10 sm:py-12 lg:grid-cols-4">
-            {PROOF.map((item) => (
-              <div key={item.label} className="px-2 text-center lg:text-left">
-                <div className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
-                  {item.value}
+            {PROOF.map((key) => (
+              <div key={key} className="px-2 text-center lg:text-left">
+                <div
+                  className={`text-3xl font-semibold text-zinc-900 sm:text-4xl ${headingType}`}>
+                  {t(`landing.proof.${key}Value`)}
                 </div>
-                <div className="mt-1 text-sm text-zinc-500">{item.label}</div>
+                <div className="mt-1 text-sm text-zinc-500">
+                  {t(`landing.proof.${key}Label`)}
+                </div>
               </div>
             ))}
           </div>
@@ -432,35 +446,35 @@ export default function ComboStoreLanding() {
           <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
 
             <div className="mb-14 max-w-2xl">
-              <SectionLabel tone="dark">The architecture</SectionLabel>
-              <h2 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Headless, without the integration project
+              <SectionLabel tone="dark">{t("landing.platform.label")}</SectionLabel>
+              <h2
+                className={`mb-4 text-3xl font-semibold sm:text-4xl ${h2Type}`}>
+                {t("landing.platform.title")}
               </h2>
               <p className="text-lg leading-relaxed text-zinc-400">
-                Most headless builds mean stitching a CMS, a commerce API and a
-                frontend together yourself. ComboStore ships all three as one
-                platform — and deploys them as a single Vercel project.
+                {t("landing.platform.body")}
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {STACK.map((item) => (
                 <div
-                  key={item.step}
+                  key={item.key}
                   className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/20">
                   <div className="mb-5 flex items-center justify-between">
                     <span className="text-xs font-medium tracking-widest text-emerald-400">
                       {item.step}
                     </span>
                     <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-zinc-400">
-                      {item.kicker}
+                      {t(`landing.stack.${item.key}.kicker`)}
                     </span>
                   </div>
-                  <h3 className="mb-2.5 text-xl font-semibold tracking-tight">
-                    {item.title}
+                  <h3
+                    className={`mb-2.5 text-xl font-semibold ${headingType}`}>
+                    {t(`landing.stack.${item.key}.title`)}
                   </h3>
                   <p className="text-sm leading-relaxed text-zinc-400">
-                    {item.desc}
+                    {t(`landing.stack.${item.key}.desc`)}
                   </p>
                 </div>
               ))}
@@ -469,15 +483,15 @@ export default function ComboStoreLanding() {
             <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3 rounded-2xl border border-white/10 bg-white/[0.03] px-7 py-5 text-sm text-zinc-400">
               <span className="inline-flex items-center gap-2">
                 <Globe size={15} className="text-emerald-400" />
-                SEO-ready server rendering
+                {t("landing.platform.seo")}
               </span>
               <span className="inline-flex items-center gap-2">
                 <Layers size={15} className="text-emerald-400" />
-                Storefront and dashboard in one deploy
+                {t("landing.platform.oneDeploy")}
               </span>
               <span className="inline-flex items-center gap-2">
                 <ShieldCheck size={15} className="text-emerald-400" />
-                JWT-authenticated admin API
+                {t("landing.platform.jwt")}
               </span>
             </div>
 
@@ -488,13 +502,12 @@ export default function ComboStoreLanding() {
         <section id="features" className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
 
           <div className="mb-14 max-w-2xl">
-            <SectionLabel>Everything included</SectionLabel>
-            <h2 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-              One dashboard, every part of the business
+            <SectionLabel>{t("landing.features.label")}</SectionLabel>
+            <h2 className={`mb-4 text-3xl font-semibold sm:text-4xl ${h2Type}`}>
+              {t("landing.features.title")}
             </h2>
             <p className="text-lg leading-relaxed text-zinc-600">
-              From the first product photo to the last delivery confirmation —
-              orders, stock, money and customers stay in one place.
+              {t("landing.features.body")}
             </p>
           </div>
 
@@ -503,16 +516,17 @@ export default function ComboStoreLanding() {
               const Icon = f.icon;
               return (
                 <div
-                  key={f.title}
+                  key={f.key}
                   className="group rounded-2xl border border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-lg hover:shadow-zinc-900/5">
                   <span className="mb-4 flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
                     <Icon size={18} />
                   </span>
-                  <h3 className="mb-2 text-base font-semibold tracking-tight text-zinc-900">
-                    {f.title}
+                  <h3
+                    className={`mb-2 text-base font-semibold text-zinc-900 ${headingType}`}>
+                    {t(`landing.features.items.${f.key}.title`)}
                   </h3>
                   <p className="text-sm leading-relaxed text-zinc-600">
-                    {f.desc}
+                    {t(`landing.features.items.${f.key}.desc`)}
                   </p>
                 </div>
               );
@@ -526,22 +540,20 @@ export default function ComboStoreLanding() {
           <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-6 py-20 sm:py-24 lg:grid-cols-2">
 
             <div>
-              <SectionLabel>AI, built in</SectionLabel>
-              <h2 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Let AI write the first draft, every time
+              <SectionLabel>{t("landing.ai.label")}</SectionLabel>
+              <h2 className={`mb-4 text-3xl font-semibold sm:text-4xl ${h2Type}`}>
+                {t("landing.ai.title")}
               </h2>
               <p className="mb-7 text-lg leading-relaxed text-zinc-600">
-                Give the assistant a few details and it drafts a product
-                description, an SEO title, or a full blog post — ready to edit
-                and publish from the same screen.
+                {t("landing.ai.body")}
               </p>
               <ul className="space-y-3.5">
-                {AI_POINTS.map((point) => (
-                  <li key={point} className="flex items-start gap-3 text-sm text-zinc-700">
+                {AI_POINTS.map((key) => (
+                  <li key={key} className="flex items-start gap-3 text-sm text-zinc-700">
                     <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-100">
                       <Check size={12} className="text-emerald-700" />
                     </span>
-                    {point}
+                    {t(`landing.ai.points.${key}`)}
                   </li>
                 ))}
               </ul>
@@ -551,28 +563,33 @@ export default function ComboStoreLanding() {
               <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-3">
                 <Sparkles size={13} className="text-emerald-600" />
                 <span className="text-xs font-medium text-zinc-500">
-                  Content assistant
+                  {t("landing.ai.panelTitle")}
                 </span>
               </div>
               <div className="p-6">
                 <div className="mb-5 rounded-xl bg-zinc-100 px-4 py-3 text-sm text-zinc-600">
-                  Write a description for: handloom cotton saree, navy blue,
-                  Tangail weave
+                  {t("landing.ai.prompt")}
                 </div>
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3.5 text-sm leading-relaxed text-zinc-800">
-                  A handwoven Tangail saree in deep navy cotton, finished with a
-                  traditional border and a soft, breathable drape built for
-                  everyday wear. Perfect for office, festivals, or gifting.
+                  {t("landing.ai.answer")}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white">
-                    Use draft
+                    {t("landing.ai.useDraft")}
                   </span>
                   <span className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600">
-                    Regenerate
+                    {t("landing.ai.regenerate")}
                   </span>
-                  <span className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600">
-                    বাংলায় লিখুন
+                  {/*
+                    The chip advertises the assistant's other language, so it
+                    reads "বাংলায় লিখুন" on the English page and "Write in
+                    English" on the Bangla one. `lang` flips with it so the
+                    right font and hyphenation rules apply.
+                  */}
+                  <span
+                    lang={isBangla ? "en" : "bn"}
+                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600">
+                    {t("landing.ai.otherLanguage")}
                   </span>
                 </div>
               </div>
@@ -585,26 +602,27 @@ export default function ComboStoreLanding() {
         <section id="payments" className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
 
           <div className="mb-14 max-w-2xl">
-            <SectionLabel>Checkout that fits Bangladesh</SectionLabel>
-            <h2 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-              Get paid the way your customers pay
+            <SectionLabel>{t("landing.payments.label")}</SectionLabel>
+            <h2 className={`mb-4 text-3xl font-semibold sm:text-4xl ${h2Type}`}>
+              {t("landing.payments.title")}
             </h2>
             <p className="text-lg leading-relaxed text-zinc-600">
-              Local payment methods come configured out of the box — there is no
-              plugin stack to license, wire up and keep in sync.
+              {t("landing.payments.body")}
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PAYMENTS.map((p) => (
               <div
-                key={p.name}
+                key={p.key}
                 className="rounded-2xl border border-zinc-200 bg-white p-6">
                 <div
-                  className={`mb-3 inline-flex rounded-lg px-2.5 py-1 text-lg font-semibold tracking-tight ring-1 ${p.accent} ${p.ring}`}>
-                  {p.name}
+                  className={`mb-3 inline-flex rounded-lg px-2.5 py-1 text-lg font-semibold ring-1 ${headingType} ${p.accent} ${p.ring}`}>
+                  {t(`landing.payments.items.${p.key}.name`)}
                 </div>
-                <p className="text-sm leading-relaxed text-zinc-600">{p.desc}</p>
+                <p className="text-sm leading-relaxed text-zinc-600">
+                  {t(`landing.payments.items.${p.key}.desc`)}
+                </p>
               </div>
             ))}
           </div>
@@ -618,24 +636,24 @@ export default function ComboStoreLanding() {
             <div className="pointer-events-none absolute -bottom-32 left-1/2 size-[520px] -translate-x-1/2 rounded-full bg-emerald-600/20 blur-3xl" />
 
             <div className="relative">
-              <h2 className="mb-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Your shop, live in days — not months
+              <h2
+                className={`mb-4 text-3xl font-semibold text-white sm:text-4xl ${h2Type}`}>
+                {t("landing.cta.title")}
               </h2>
               <p className="mx-auto mb-8 max-w-lg text-lg leading-relaxed text-zinc-400">
-                Point it at a domain and deploy. We will walk you through setup,
-                migration and payment configuration.
+                {t("landing.cta.body")}
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 <a
                   href="/onboard"
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500">
-                  Deploy on Vercel
+                  {t("landing.cta.primary")}
                   <ArrowRight size={16} />
                 </a>
                 <a
                   href="#contact"
                   className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/5">
-                  Talk to sales
+                  {t("landing.cta.secondary")}
                 </a>
               </div>
             </div>
@@ -654,54 +672,56 @@ export default function ComboStoreLanding() {
             <div className="max-w-xs">
               <Logo />
               <p className="mt-3.5 text-sm leading-relaxed text-zinc-600">
-                Headless ecommerce for Bangladeshi sellers, built on WordPress
-                and Next.js.
+                {t("landing.footer.tagline")}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-x-14 gap-y-8">
               <div>
-                <h4 className="mb-3.5 text-xs font-semibold tracking-wider text-zinc-400">
-                  PLATFORM
+                <h4
+                  className={`mb-3.5 text-xs font-semibold text-zinc-400 ${footerHeadingType}`}>
+                  {t("landing.footer.platformHeading")}
                 </h4>
                 <div className="flex flex-col gap-2.5 text-sm">
                   <a href="#platform" className="text-zinc-600 hover:text-emerald-700">
-                    Architecture
+                    {t("landing.footer.architecture")}
                   </a>
                   <a href="#features" className="text-zinc-600 hover:text-emerald-700">
-                    Features
+                    {t("landing.footer.features")}
                   </a>
                   <a href="#ai" className="text-zinc-600 hover:text-emerald-700">
-                    AI assistant
+                    {t("landing.footer.aiAssistant")}
                   </a>
                 </div>
               </div>
               <div>
-                <h4 className="mb-3.5 text-xs font-semibold tracking-wider text-zinc-400">
-                  PAYMENTS
+                <h4
+                  className={`mb-3.5 text-xs font-semibold text-zinc-400 ${footerHeadingType}`}>
+                  {t("landing.footer.paymentsHeading")}
                 </h4>
                 <div className="flex flex-col gap-2.5 text-sm">
                   <a href="#payments" className="text-zinc-600 hover:text-emerald-700">
-                    bKash
+                    {t("landing.payments.items.bkash.name")}
                   </a>
                   <a href="#payments" className="text-zinc-600 hover:text-emerald-700">
-                    Nagad
+                    {t("landing.payments.items.nagad.name")}
                   </a>
                   <a href="#payments" className="text-zinc-600 hover:text-emerald-700">
-                    Rocket
+                    {t("landing.payments.items.rocket.name")}
                   </a>
                 </div>
               </div>
               <div>
-                <h4 className="mb-3.5 text-xs font-semibold tracking-wider text-zinc-400">
-                  COMPANY
+                <h4
+                  className={`mb-3.5 text-xs font-semibold text-zinc-400 ${footerHeadingType}`}>
+                  {t("landing.footer.companyHeading")}
                 </h4>
                 <div className="flex flex-col gap-2.5 text-sm">
                   <a href="#contact" className="text-zinc-600 hover:text-emerald-700">
-                    Contact
+                    {t("landing.footer.contact")}
                   </a>
                   <a href="/onboard" className="text-zinc-600 hover:text-emerald-700">
-                    Deploy on Vercel
+                    {t("landing.footer.deploy")}
                   </a>
                 </div>
               </div>
@@ -709,14 +729,25 @@ export default function ComboStoreLanding() {
 
           </div>
 
-          <div className="mt-12 flex flex-wrap justify-between gap-3 border-t border-zinc-200 pt-6 text-xs text-zinc-500">
-            <span>© 2026 ComboStore. Made for Bangladesh.</span>
-            <span>Dhaka · Bangladesh</span>
+          <div className="mt-12 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-6 text-xs text-zinc-500">
+            <span>{t("landing.footer.copyright")}</span>
+            <span className="flex items-center gap-4">
+              {t("landing.footer.location")}
+              <LanguageSwitch />
+            </span>
           </div>
 
         </div>
       </footer>
 
     </div>
+  );
+}
+
+export default function ComboStoreLanding() {
+  return (
+    <LocaleProvider>
+      <LandingContent />
+    </LocaleProvider>
   );
 }

@@ -2,5 +2,176 @@
   "greeting": "Hello",
   "home": {
     "title": "Welcome to my site"
+  },
+  "landing": {
+    "nav": {
+      "platform": "Platform",
+      "features": "Features",
+      "ai": "AI",
+      "payments": "Payments",
+      "deploy": "Deploy on Vercel",
+      "toggleMenu": "Toggle navigation",
+      "language": "Language"
+    },
+    "hero": {
+      "label": "Headless commerce · WordPress + Next.js",
+      "titleBefore": "The ecommerce platform that keeps ",
+      "titleHighlight": "WordPress",
+      "titleAfter": " behind the counter.",
+      "body": "ComboStore puts a Next.js storefront in front of the WordPress admin your team already runs — one deploy, nine business modules, and the payment methods your customers actually use.",
+      "ctaPrimary": "Deploy on Vercel",
+      "ctaSecondary": "See how it works",
+      "noCard": "No card required",
+      "support": "Setup support in Bangla & English"
+    },
+    "proof": {
+      "modulesValue": "9",
+      "modulesLabel": "Modules included",
+      "paymentsValue": "4",
+      "paymentsLabel": "Payment methods",
+      "deployValue": "1",
+      "deployLabel": "Click to deploy",
+      "languagesValue": "2",
+      "languagesLabel": "Languages supported"
+    },
+    "platform": {
+      "label": "The architecture",
+      "title": "Headless, without the integration project",
+      "body": "Most headless builds mean stitching a CMS, a commerce API and a frontend together yourself. ComboStore ships all three as one platform — and deploys them as a single Vercel project.",
+      "seo": "SEO-ready server rendering",
+      "oneDeploy": "Storefront and dashboard in one deploy",
+      "jwt": "JWT-authenticated admin API"
+    },
+    "stack": {
+      "wordpress": {
+        "kicker": "Admin & content",
+        "title": "WordPress",
+        "desc": "Your team works in the editor it already knows. The ComboStore plugin adds the commerce models, roles and a REST layer on top of it."
+      },
+      "api": {
+        "kicker": "Commerce engine",
+        "title": "ComboStore API",
+        "desc": "Order logic, stock sync, payment rails and delivery routing run through one API layer — the storefront never touches the database."
+      },
+      "storefront": {
+        "kicker": "Customer-facing",
+        "title": "Next.js storefront",
+        "desc": "Server-rendered category and product pages, incremental revalidation, and a checkout that still works on a slow connection."
+      }
+    },
+    "features": {
+      "label": "Everything included",
+      "title": "One dashboard, every part of the business",
+      "body": "From the first product photo to the last delivery confirmation — orders, stock, money and customers stay in one place.",
+      "items": {
+        "orders": {
+          "title": "Order management",
+          "desc": "Every order from placed to delivered, with status your team and your customer both see."
+        },
+        "products": {
+          "title": "Product management",
+          "desc": "Variants, categories and pricing in the WordPress editor, published straight to the storefront."
+        },
+        "stock": {
+          "title": "Stock management",
+          "desc": "Live counts across warehouses, with low-stock alerts before a listing goes dark."
+        },
+        "purchases": {
+          "title": "Purchases & expenses",
+          "desc": "Log supplier invoices and running costs so margin is a number, not a guess."
+        },
+        "delivery": {
+          "title": "Delivery management",
+          "desc": "Assign riders or courier partners, print labels, and push live status to buyers."
+        },
+        "payments": {
+          "title": "Local payments",
+          "desc": "Cash on Delivery, bKash, Nagad and Rocket wired into checkout — no plugin stack to assemble."
+        },
+        "support": {
+          "title": "Support tickets",
+          "desc": "Questions and complaints in one queue, with the full order history attached."
+        },
+        "ai": {
+          "title": "AI content assistant",
+          "desc": "Draft product descriptions and blog posts in seconds, in Bangla or English."
+        },
+        "media": {
+          "title": "Media library",
+          "desc": "Product photos and video in one place, optimised automatically for fast pages."
+        }
+      }
+    },
+    "ai": {
+      "label": "AI, built in",
+      "title": "Let AI write the first draft, every time",
+      "body": "Give the assistant a few details and it drafts a product description, an SEO title, or a full blog post — ready to edit and publish from the same screen.",
+      "points": {
+        "descriptions": "Product descriptions drafted from photos and specs",
+        "blog": "Blog posts for SEO and seasonal campaigns",
+        "bilingual": "Writes in Bangla and English",
+        "editable": "Every draft stays editable before it publishes"
+      },
+      "panelTitle": "Content assistant",
+      "prompt": "Write a description for: handloom cotton saree, navy blue, Tangail weave",
+      "answer": "A handwoven Tangail saree in deep navy cotton, finished with a traditional border and a soft, breathable drape built for everyday wear. Perfect for office, festivals, or gifting.",
+      "useDraft": "Use draft",
+      "regenerate": "Regenerate",
+      "otherLanguage": "বাংলায় লিখুন"
+    },
+    "payments": {
+      "label": "Checkout that fits Bangladesh",
+      "title": "Get paid the way your customers pay",
+      "body": "Local payment methods come configured out of the box — there is no plugin stack to license, wire up and keep in sync.",
+      "items": {
+        "bkash": {
+          "name": "bKash",
+          "desc": "Direct checkout integration, no separate plugin to license."
+        },
+        "nagad": {
+          "name": "Nagad",
+          "desc": "Instant payment confirmation the moment checkout completes."
+        },
+        "rocket": {
+          "name": "Rocket",
+          "desc": "Mobile banking, configured and ready from day one."
+        },
+        "cod": {
+          "name": "Cash on Delivery",
+          "desc": "With delivery confirmation built into the rider workflow."
+        }
+      }
+    },
+    "cta": {
+      "title": "Your shop, live in days — not months",
+      "body": "Point it at a domain and deploy. We will walk you through setup, migration and payment configuration.",
+      "primary": "Deploy on Vercel",
+      "secondary": "Talk to sales"
+    },
+    "mock": {
+      "url": "yourstore.com",
+      "inStock": "IN STOCK",
+      "price1": "৳1,450",
+      "price2": "৳890",
+      "price3": "৳2,100",
+      "price4": "৳640",
+      "orderNo": "Order #1042",
+      "paidWith": "Paid with bKash",
+      "staticTitle": "Static + revalidated",
+      "staticDesc": "Served from the edge"
+    },
+    "footer": {
+      "tagline": "Headless ecommerce for Bangladeshi sellers, built on WordPress and Next.js.",
+      "platformHeading": "PLATFORM",
+      "paymentsHeading": "PAYMENTS",
+      "companyHeading": "COMPANY",
+      "architecture": "Architecture",
+      "features": "Features",
+      "aiAssistant": "AI assistant",
+      "contact": "Contact",
+      "deploy": "Deploy on Vercel",
+      "copyright": "© 2026 ComboStore. Made for Bangladesh.",
+      "location": "Dhaka · Bangladesh"
+    }
   }
 }
