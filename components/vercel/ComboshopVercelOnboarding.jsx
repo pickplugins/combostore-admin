@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Rocket,
   Server,
+  ShieldAlert,
   Store,
   Trash2,
   User,
@@ -48,6 +49,19 @@ const DASHBOARD_REPO = "pickplugins/combostore";
 */
 const WP_SUBDOMAIN = "server";
 
+/*
+  Where ComboStore itself lives: the header wordmark links here, and it is the
+  origin clients have to allow-list.
+
+  The connection check runs from this page, so the browser sends a CORS
+  preflight to WordPress before the POST ever arrives. WordPress answers REST
+  requests without CORS headers by default, which the browser reports as an
+  opaque network failure - indistinguishable from a domain that does not
+  resolve. So this origin has to be on the Enable CORS allow list, and a
+  failed check says so first.
+*/
+const COMBOSTORE_ORIGIN = "https://combostore.bd/";
+
 const WP_PLUGINS = [
   {
     name: "Combo Store — Server",
@@ -65,6 +79,8 @@ const WP_PLUGINS = [
     href: "https://wordpress.org/plugins/jwt-authentication-for-wp-rest-api/",
   },
 ];
+
+const CORS_PLUGIN = WP_PLUGINS.find((plugin) => plugin.name === "Enable CORS");
 
 const STEPS = [
   { n: 1, label: "Credentials" },
@@ -309,14 +325,19 @@ function Stepper({ step }) {
 function BrandBar({ step }) {
   return (
     <div className="mb-8 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-2.5">
-        <span className="flex size-8 items-center justify-center rounded-xl bg-emerald-600 text-[13px] font-bold text-white">
+      <a
+        href={COMBOSTORE_ORIGIN}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="ComboStore home"
+        className="group flex items-center gap-2.5 !rounded-xl no-underline outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600">
+        <span className="flex size-8 items-center justify-center rounded-xl bg-emerald-600 text-[13px] font-bold text-white transition-colors group-hover:bg-emerald-700">
           CS
         </span>
-        <span className="text-[17px] font-semibold tracking-tight text-zinc-900">
+        <span className="text-[17px] font-semibold tracking-tight text-zinc-900 transition-colors group-hover:text-emerald-700">
           ComboStore
         </span>
-      </div>
+      </a>
       {step ? (
         <span className="text-xs text-zinc-500">
           Step {step} of {STEPS.length}
@@ -771,7 +792,7 @@ export default function ComboshopVercelOnboarding() {
 
     var postData = JSON.stringify({ ...contact, domain: mainDomain, project: dbName });
 
-    console.log(postData);
+    console.log('create_project 1');
 
 
     fetch(
@@ -791,6 +812,7 @@ export default function ComboshopVercelOnboarding() {
 
         if (response.ok && response.status < 400) {
           response.json().then((res) => {
+
 
             console.log(res);
 
@@ -869,6 +891,9 @@ export default function ComboshopVercelOnboarding() {
 
       const result = await response.json().catch(() => null);
 
+      console.log(result);
+
+
       if (!result?.success) {
         setWpStatus("failed");
         setWpError("The REST route answered but did not confirm the connection.");
@@ -883,7 +908,7 @@ export default function ComboshopVercelOnboarding() {
       setWpError(
         error?.name === "AbortError"
           ? `${host} did not answer within 15 seconds.`
-          : `Could not reach ${host}. Check the subdomain points at the WordPress install and that Enable CORS is active there.`
+          : `Could not reach ${host}. WordPress either blocked the request (CORS) or the subdomain does not point at the install.`
       );
       return false;
     } finally {
@@ -1342,38 +1367,93 @@ export default function ComboshopVercelOnboarding() {
 
             <FieldError>{wpError}</FieldError>
 
-            {/* The things that actually cause this to fail, rather than a bare
-                error with nothing to act on. */}
+            {/* A blocked preflight is by far the most common cause and the one
+                the browser cannot report properly, so it leads - with the exact
+                value to paste - and the rest follows as a checklist. */}
             {wpStatus === "failed" && (
-              <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
-                <p className="mb-2.5 text-xs font-medium text-zinc-700">
-                  On the WordPress install at this subdomain, check that:
-                </p>
-                <ul className="space-y-2">
-                  {WP_PLUGINS.map((plugin) => (
-                    <li key={plugin.name} className="flex items-start gap-2 text-xs">
-                      <span className="mt-1.5 size-1 shrink-0 rounded-full bg-zinc-400" />
-                      <span className="min-w-0">
-                        <a
-                          href={plugin.href}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-medium text-zinc-700 hover:text-emerald-700 hover:underline">
-                          {plugin.name}
-                        </a>
-                        <span className="text-zinc-500">
-                          {" "}is installed and active.
+              <div className="mt-4 space-y-3">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+                  <div className="mb-2 flex items-start gap-2">
+                    <ShieldAlert size={14} className="mt-px shrink-0 text-amber-600" />
+                    <p className="text-xs font-semibold text-amber-900">
+                      Most likely: WordPress is blocking this check (CORS)
+                    </p>
+                  </div>
+                  <p className="mb-3 text-xs leading-relaxed text-amber-800">
+                    The check runs from your browser, so WordPress has to allow
+                    requests from this site. Install and activate{" "}
+                    <a
+                      href={CORS_PLUGIN.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-amber-900 underline hover:text-amber-950">
+                      Enable CORS
+                    </a>{" "}
+                    on the WordPress install, then add this origin to its allow
+                    list:
+                  </p>
+
+                  <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-white p-2.5">
+                    <span
+                      style={FONT_MONO}
+                      className="min-w-0 flex-1 truncate text-xs font-medium text-zinc-800">
+                      {COMBOSTORE_ORIGIN}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(COMBOSTORE_ORIGIN, "cors-origin")}
+                      aria-label="Copy the origin to allow"
+                      className={`${BTN_ICON} !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 focus-visible:outline-zinc-400`}>
+                      {copied === "cors-origin" ? (
+                        <>
+                          <Check size={13} className="text-emerald-600" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <p className="mt-2.5 text-xs text-amber-700">
+                    In Enable CORS this is the <em>Allow origin</em> setting -
+                    paste the value above, save, then run the check again.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
+                  <p className="mb-2.5 text-xs font-medium text-zinc-700">
+                    If it still fails, check on the WordPress install that:
+                  </p>
+                  <ul className="space-y-2">
+                    {WP_PLUGINS.filter((plugin) => plugin !== CORS_PLUGIN).map((plugin) => (
+                      <li key={plugin.name} className="flex items-start gap-2 text-xs">
+                        <span className="mt-1.5 size-1 shrink-0 rounded-full bg-zinc-400" />
+                        <span className="min-w-0">
+                          <a
+                            href={plugin.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-zinc-700 hover:text-emerald-700 hover:underline">
+                            {plugin.name}
+                          </a>
+                          <span className="text-zinc-500">
+                            {" "}is installed and active - {plugin.note.toLowerCase()}.
+                          </span>
                         </span>
+                      </li>
+                    ))}
+                    <li className="flex items-start gap-2 text-xs">
+                      <span className="mt-1.5 size-1 shrink-0 rounded-full bg-zinc-400" />
+                      <span className="text-zinc-500">
+                        The subdomain resolves to that install over HTTPS with a valid certificate.
                       </span>
                     </li>
-                  ))}
-                  <li className="flex items-start gap-2 text-xs">
-                    <span className="mt-1.5 size-1 shrink-0 rounded-full bg-zinc-400" />
-                    <span className="text-zinc-500">
-                      The subdomain resolves to that install over HTTPS with a valid certificate.
-                    </span>
-                  </li>
-                </ul>
+                  </ul>
+                </div>
               </div>
             )}
           </Card>
