@@ -8,6 +8,7 @@ import {
   Check,
   CircleAlert,
   Copy,
+  Download,
   ExternalLink,
   Eye,
   EyeOff,
@@ -15,13 +16,22 @@ import {
   KeyRound,
   LayoutDashboard,
   Loader2,
+  Mail,
+  MapPin,
+  Phone,
   Plus,
   RefreshCw,
   Rocket,
   Server,
   Store,
   Trash2,
+  User,
 } from "lucide-react";
+
+
+const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+
+
 
 /*
   One repo, one project. combostore-storefront is retired: the dashboard repo
@@ -30,6 +40,13 @@ import {
   domain rather than a `dashboard.` subdomain.
 */
 const DASHBOARD_REPO = "pickplugins/combostore";
+
+/*
+  WordPress lives on a subdomain of the store's main domain - the root domain
+  belongs to the Vercel project. Step 1 already shows the operator this split,
+  and `NEXT_PUBLIC_SERVER_URL` is built from it.
+*/
+const WP_SUBDOMAIN = "server";
 
 const WP_PLUGINS = [
   {
@@ -52,7 +69,42 @@ const WP_PLUGINS = [
 const STEPS = [
   { n: 1, label: "Credentials" },
   { n: 2, label: "Configure" },
-  { n: 3, label: "Review" },
+  { n: 3, label: "Contact" },
+  { n: 4, label: "Review" },
+];
+
+/* The store owner Combo Store writes into the project's records. */
+const EMPTY_CONTACT = { name: "", email: "", phone: "", address: "" };
+
+const CONTACT_FIELDS = [
+  {
+    id: "contact-name",
+    field: "name",
+    label: "Full name",
+    placeholder: "Jane Doe",
+    type: "text",
+    autoComplete: "name",
+    icon: User,
+  },
+  {
+    id: "contact-email",
+    field: "email",
+    label: "Email address",
+    placeholder: "jane@mystore.com",
+    type: "email",
+    autoComplete: "email",
+    icon: Mail,
+  },
+  {
+    id: "contact-phone",
+    field: "phone",
+    label: "Phone number",
+    placeholder: "+1 555 010 2030",
+    type: "tel",
+    autoComplete: "tel",
+    icon: Phone,
+    optional: true,
+  },
 ];
 
 const FONT_SANS = { fontFamily: "var(--font-geist-sans), system-ui, sans-serif" };
@@ -94,6 +146,64 @@ const BTN_SECONDARY = `${BTN} !border-zinc-300 bg-white !text-zinc-700 hover:bg-
 const BTN_ICON =
   "inline-flex shrink-0 items-center justify-center gap-1.5 !rounded-lg !border !border-transparent !bg-transparent !px-2 !py-1.5 text-xs font-medium !shadow-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-1";
 
+/*
+  Serialise the editor rows as a `.env` file. Values are left bare when they
+  are a single safe token and quoted otherwise, because a value holding a
+  space, a `#` or a newline would otherwise be truncated or read as a comment
+  by anything sourcing the file.
+*/
+function serializeEnvFile(envs, header = []) {
+  const lines = header.map((h) => (h ? `# ${h}` : "#"));
+  if (lines.length) lines.push("");
+
+  for (const { key, value } of envs) {
+    const k = key.trim();
+    if (!k) continue;
+    const v = value ?? "";
+    const needsQuotes = v === "" || /[\s#'"\\$`]/.test(v);
+    lines.push(
+      needsQuotes
+        ? `${k}="${v.replace(/([\\"$`])/g, "\\$1").replace(/\n/g, "\\n")}"`
+        : `${k}=${v}`
+    );
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+/*
+  Hand the text to the browser as a file. An object URL rather than a
+  `data:` URL so large payloads are not capped, and it is revoked on the next
+  tick - revoking synchronously can race the download in Safari.
+*/
+function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* ── Primitives ─────────────────────────────────────────────────── */
 
 function Card({ children, className = "" }) {
@@ -110,6 +220,7 @@ function CardHead({ icon: Icon, title, desc, tone = "emerald" }) {
     emerald: "bg-emerald-50 text-emerald-600",
     violet: "bg-violet-50 text-violet-600",
     zinc: "bg-zinc-100 text-zinc-600",
+    red: "bg-red-50 text-red-600",
   };
   return (
     <div className="mb-5 flex items-start gap-3">
@@ -207,7 +318,9 @@ function BrandBar({ step }) {
         </span>
       </div>
       {step ? (
-        <span className="text-xs text-zinc-500">Step {step} of 3</span>
+        <span className="text-xs text-zinc-500">
+          Step {step} of {STEPS.length}
+        </span>
       ) : null}
     </div>
   );
@@ -325,6 +438,56 @@ function EnvVarEditor({ envs, onChange, onRegenerateToken }) {
 }
 
 /*
+  A confirmation the wizard can style and word properly. `window.confirm` was
+  the other option, but it blocks the whole tab, cannot offer the third
+  "download it first" choice this needs, and the rest of the wizard already
+  avoids native dialogs for the same reason inline field errors beat `alert()`.
+*/
+function ConfirmDialog({ title, desc, children, onCancel }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+      {/* Backdrop is its own element so a click outside the panel cancels. */}
+      <div
+        className="absolute inset-0 bg-zinc-900/40"
+        onClick={onCancel}
+        aria-hidden="true"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        style={FONT_SANS}
+        className="relative w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl sm:p-6">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+            <CircleAlert size={17} />
+          </span>
+          <div className="min-w-0">
+            <h2
+              id="confirm-title"
+              className="text-sm font-semibold tracking-tight text-zinc-900">
+              {title}
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">{desc}</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:justify-end">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/*
   Page frame. Declared at module scope on purpose: a component defined inside
   the wizard body would be a new type on every render, so React would unmount
   and remount the whole form - losing focus out of the field being typed into.
@@ -353,6 +516,25 @@ export default function ComboshopVercelOnboarding() {
   const [mainDomain, setMainDomain] = useState("");
   const [errors, setErrors] = useState({});
   const [copied, setCopied] = useState("");
+  const [envDownloaded, setEnvDownloaded] = useState(false);
+  const [contact, setContact] = useState(EMPTY_CONTACT);
+  /*
+    What the last download actually contained, not a boolean: editing a
+    variable - or the domain, which rewrites two of them - makes the saved file
+    stale, and a flag would still read "saved" for a file that no longer
+    matches what is about to be deployed.
+  */
+  const [savedEnvText, setSavedEnvText] = useState("");
+  const [confirmingDeploy, setConfirmingDeploy] = useState(false);
+
+  /*
+    Whether the WordPress side has answered. Nothing after step 2 is worth
+    filling in until it has: a domain pointing somewhere else, a missing
+    combostore-server plugin or a CORS header that was never added all produce
+    a project that builds cleanly and then serves an empty store.
+  */
+  const [wpStatus, setWpStatus] = useState("idle");
+  const [wpError, setWpError] = useState("");
 
   const [dbName, setDbName] = useState("combostore");
   const [dbBuild, setDbBuild] = useState("");
@@ -430,6 +612,32 @@ export default function ComboshopVercelOnboarding() {
     setStep(2);
   };
 
+  const updateContact = (field, value) => {
+    setContact((c) => ({ ...c, [field]: value }));
+    if (errors[field]) setErrors((p) => ({ ...p, [field]: "" }));
+  };
+
+  /*
+    Name and email are what the store is actually reachable at, so they are
+    required; phone and address are recorded when given but a store can be run
+    without either. The email check is deliberately loose - a stricter pattern
+    rejects valid addresses more often than it catches typos.
+  */
+  const goStep4 = () => {
+    const next = {};
+    if (!contact.name.trim()) next.name = "Enter the store owner's name.";
+    if (!contact.email.trim()) next.email = "An email address is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim()))
+      next.email = "That does not look like an email address.";
+    setErrors(next);
+    if (Object.keys(next).length) return;
+
+
+
+
+    setStep(4);
+  };
+
   const buildEnvPayload = (envs) =>
     envs
       .filter((e) => e.key.trim())
@@ -439,6 +647,62 @@ export default function ComboshopVercelOnboarding() {
         type: "plain",
         target: ["production", "preview", "development"],
       }));
+
+  /* Only the contact fields that were filled in, one `Label: value` per line.
+     A multi-line address is flattened so each line stays a comment. */
+  const contactLines = [
+    ["Name", contact.name],
+    ["Email", contact.email],
+    ["Phone", contact.phone],
+    ["Address", contact.address.replace(/\s*\n\s*/g, ", ")],
+  ]
+    .filter(([, v]) => v.trim())
+    .map(([k, v]) => `${`${k}:`.padEnd(9)} ${v.trim()}`);
+
+  /*
+    The variables the operator is about to deploy with, as a `.env` they can
+    keep: API_TOKEN is generated here and shown nowhere else once the wizard is
+    closed, so without this the only copy of it lives in the Vercel project.
+  */
+  const envFileText = () =>
+    serializeEnvFile(dbEnvs, [
+      "ComboStore environment variables",
+      `Project:    ${dbName || "combostore"}`,
+      `Repository: ${DASHBOARD_REPO}`,
+      ...(mainDomain ? [`Domain:     ${mainDomain}`] : []),
+      `Generated:  ${new Date().toISOString()}`,
+      /*
+        The contact goes in as comments rather than variables: the store owner
+        is a record of who this deployment belongs to, not configuration the
+        build reads, and inventing `OWNER_EMAIL`-style keys would ship it to
+        every runtime that reads the environment.
+      */
+      ...(contactLines.length ? ["", "Store contact", ...contactLines] : []),
+      "",
+      "Keep this file private - it contains the store's API token.",
+    ]);
+
+  const envFileName = `${(dbName || "combostore")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "combostore"}.env`;
+
+  /*
+    The body alone - no header - is what "already saved" is measured against,
+    so a second download differing only by its `Generated:` timestamp does not
+    read as a change.
+  */
+  const envBody = serializeEnvFile(dbEnvs);
+  const hasEnvs = buildEnvPayload(dbEnvs).length > 0;
+  const envSaved = hasEnvs && savedEnvText === envBody;
+
+  const downloadEnvFile = () => {
+    downloadTextFile(envFileName, envFileText());
+    setSavedEnvText(envBody);
+    setEnvDownloaded(true);
+    setTimeout(() => setEnvDownloaded(false), 1600);
+  };
 
   const deploy = async () => {
     setDeploying(true);
@@ -450,6 +714,12 @@ export default function ComboshopVercelOnboarding() {
       "Content-Type": "application/json",
     };
     const teamParam = teamId.trim() ? `?teamId=${teamId.trim()}` : "";
+
+
+
+
+
+
 
     try {
       addLog("Creating ComboStore project…", "info");
@@ -488,15 +758,200 @@ export default function ComboshopVercelOnboarding() {
     }
   };
 
+
+
+  function create_project() {
+
+
+    // if (!token) {
+    //   throw new Error("No token found");
+    // }
+
+
+
+    var postData = JSON.stringify({ ...contact, domain: mainDomain, project: dbName });
+
+    console.log(postData);
+
+
+    fetch(
+      serverUrl + "wp-json/combostore-admin/v2/create_project",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: postData,
+      }
+    )
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Token validation failed");
+        }
+
+        if (response.ok && response.status < 400) {
+          response.json().then((res) => {
+
+            console.log(res);
+
+
+
+          });
+        }
+      })
+      .catch((_error) => {
+        //this.saveAsStatus = 'error';
+        // handle the error
+      });
+  }
+  /*
+    combostore-server's own reachability probe: it answers `{ success: true }`
+    and nothing else, so a 200 carrying that body is the plugin confirming it
+    is installed and serving REST requests on that host. Everything else is
+    a failed connection - a 404 is a WordPress without the plugin, a thrown
+    request is a domain resolving elsewhere or a preflight with no CORS header.
+
+    The probe goes to `server.<domain>`, not the root domain: step 1 assigns
+    the root domain to this Vercel project and WordPress to the `server.`
+    subdomain, which is what `NEXT_PUBLIC_SERVER_URL` points at. Probing the
+    root domain would reach the storefront - or, before the first deploy,
+    nothing at all.
+
+    `mainDomain` is stored bare (`normalizeDomain` strips the protocol), so the
+    scheme and the leading slash are put back here rather than concatenating
+    the domain straight onto the path.
+  */
+  const combo_store_connection = useCallback(async () => {
+    const domain = mainDomain
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/.*$/, "");
+
+    if (!domain) {
+      setWpStatus("failed");
+      setWpError("No domain to check - go back and enter the store domain.");
+      return false;
+    }
+
+    const host = `${WP_SUBDOMAIN}.${domain}`;
+
+    setWpStatus("checking");
+    setWpError("");
+
+    console.log(host);
+
+
+    /* A domain pointing at nothing can hang until the browser gives up, so the
+       probe is cut off rather than leaving the step spinning indefinitely. */
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 15000);
+
+    try {
+      const response = await fetch(
+        `https://${host}/wp-json/combo-store/v2/combo_store_connection`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ domain }),
+          signal: abort.signal,
+        }
+      );
+
+      if (!response.ok) {
+        setWpStatus("failed");
+        setWpError(
+          response.status === 404
+            ? `${host} answered, but the Combo Store - Server plugin is not active there (no REST route).`
+            : `${host} answered with HTTP ${response.status}.`
+        );
+        return false;
+      }
+
+      const result = await response.json().catch(() => null);
+
+      if (!result?.success) {
+        setWpStatus("failed");
+        setWpError("The REST route answered but did not confirm the connection.");
+        return false;
+      }
+
+      setWpStatus("ok");
+      setWpError("");
+      return true;
+    } catch (error) {
+      setWpStatus("failed");
+      setWpError(
+        error?.name === "AbortError"
+          ? `${host} did not answer within 15 seconds.`
+          : `Could not reach ${host}. Check the subdomain points at the WordPress install and that Enable CORS is active there.`
+      );
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }, [mainDomain]);
+
+  /* An edited domain is unverified: without this a changed domain inherits the
+     previous one's green check. Dropping back to `idle` is also what re-arms
+     the probe below. */
+  useEffect(() => {
+    setWpStatus("idle");
+    setWpError("");
+  }, [mainDomain]);
+
+  /* Run the check when step 2 opens so the operator does not have to ask for
+     it, and leave a failed result alone until they retry by hand. */
+  useEffect(() => {
+    if (step === 2 && wpStatus === "idle") combo_store_connection();
+  }, [step, wpStatus, combo_store_connection]);
+
+
+
+
+
+
+  /*
+    Deploying is the last point at which the generated API token and the store
+    contact are recoverable from the browser, so an unsaved `.env` gets a
+    confirmation first rather than being lost in silence.
+  */
+  const requestDeploy = () => {
+
+
+    console.log(envSaved);
+    console.log(hasEnvs);
+
+    if (envSaved || !hasEnvs) {
+      deploy();
+      return;
+    }
+
+
+
+
+    setConfirmingDeploy(true);
+  };
+
+  const downloadThenDeploy = () => {
+    downloadEnvFile();
+    setConfirmingDeploy(false);
+    deploy();
+  };
+
   const reset = () => {
     setStep(1);
     setDeployed(false);
     setDeploying(false);
     setVercelToken("");
     setMainDomain("");
+    setContact(EMPTY_CONTACT);
+    setSavedEnvText("");
+    setConfirmingDeploy(false);
     setLogs([]);
     setDeployError("");
     setErrors({});
+    setWpStatus("idle");
+    setWpError("");
   };
 
   const copyToClipboard = async (text, id) => {
@@ -622,7 +1077,7 @@ export default function ComboshopVercelOnboarding() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={() => { setDeploying(false); setStep(3); }}
+                onClick={() => { setDeploying(false); setStep(4); }}
                 className={BTN_SECONDARY}>
                 <ArrowLeft size={15} />
                 Back to review
@@ -830,6 +1285,100 @@ export default function ComboshopVercelOnboarding() {
           <Stepper step={2} />
 
           <Card>
+            <CardHead
+              icon={Server}
+              title="WordPress connection"
+              desc={`Combo Store has to answer on ${WP_SUBDOMAIN}.${mainDomain || "your-domain.com"} before the project is created.`}
+              tone={
+                wpStatus === "ok"
+                  ? "emerald"
+                  : wpStatus === "failed"
+                    ? "red"
+                    : wpStatus === "checking"
+                      ? "violet"
+                      : "zinc"
+              }
+            />
+
+            <div className="flex flex-wrap items-center gap-3">
+              {wpStatus === "ok" ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+                  <Check size={13} className="shrink-0" />
+                  Connected
+                </span>
+              ) : wpStatus === "checking" ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700">
+                  <Loader2 size={13} className="shrink-0 animate-spin" />
+                  Checking connection
+                </span>
+              ) : wpStatus === "failed" ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700">
+                  <CircleAlert size={13} className="shrink-0" />
+                  Not connected
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600">
+                  <Server size={13} className="shrink-0" />
+                  Not checked yet
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={combo_store_connection}
+                disabled={wpStatus === "checking"}
+                className={BTN_SECONDARY}>
+                <RefreshCw
+                  size={14}
+                  className={wpStatus === "checking" ? "animate-spin" : ""}
+                />
+                {wpStatus === "checking" ? "Checking" : "Check again"}
+              </button>
+            </div>
+
+            <p style={FONT_MONO} className="mt-3 truncate text-xs text-zinc-400">
+              POST https://{WP_SUBDOMAIN}.{mainDomain || "your-domain.com"}/wp-json/combo-store/v2/combo_store_connection
+            </p>
+
+            <FieldError>{wpError}</FieldError>
+
+            {/* The things that actually cause this to fail, rather than a bare
+                error with nothing to act on. */}
+            {wpStatus === "failed" && (
+              <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
+                <p className="mb-2.5 text-xs font-medium text-zinc-700">
+                  On the WordPress install at this subdomain, check that:
+                </p>
+                <ul className="space-y-2">
+                  {WP_PLUGINS.map((plugin) => (
+                    <li key={plugin.name} className="flex items-start gap-2 text-xs">
+                      <span className="mt-1.5 size-1 shrink-0 rounded-full bg-zinc-400" />
+                      <span className="min-w-0">
+                        <a
+                          href={plugin.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-medium text-zinc-700 hover:text-emerald-700 hover:underline">
+                          {plugin.name}
+                        </a>
+                        <span className="text-zinc-500">
+                          {" "}is installed and active.
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                  <li className="flex items-start gap-2 text-xs">
+                    <span className="mt-1.5 size-1 shrink-0 rounded-full bg-zinc-400" />
+                    <span className="text-zinc-500">
+                      The subdomain resolves to that install over HTTPS with a valid certificate.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            )}
+          </Card>
+
+          <Card>
             <div className="mb-5 flex flex-wrap items-start gap-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                 <Rocket size={17} />
@@ -922,12 +1471,109 @@ export default function ComboshopVercelOnboarding() {
             </div>
           </Card>
 
-          <div className="flex justify-end gap-2.5">
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
+            {wpStatus !== "ok" && (
+              <p className="mr-auto text-xs text-zinc-500">
+                Verify the WordPress connection to continue.
+              </p>
+            )}
             <button type="button" onClick={() => setStep(1)} className={BTN_SECONDARY}>
               <ArrowLeft size={15} />
               Back
             </button>
-            <button type="button" onClick={() => setStep(3)} className={BTN_PRIMARY}>
+            <button
+              type="button"
+              onClick={() => setStep(3)}
+              disabled={wpStatus !== "ok"}
+              className={BTN_PRIMARY}>
+              Continue
+              <ArrowRight size={15} />
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Step 3 — Contact details */}
+      {step === 3 && (
+        <>
+          <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-zinc-900">
+            Contact details
+          </h1>
+          <p className="mb-7 text-sm text-zinc-500">
+            Who this store belongs to — kept with the deployment record and
+            written into the downloadable env file.
+          </p>
+
+          <Stepper step={3} />
+
+          <Card>
+            <CardHead
+              icon={User}
+              tone="violet"
+              title="Store owner"
+              desc="Used to reach whoever runs this store about the deployment."
+            />
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {CONTACT_FIELDS.map((f) => (
+                <div key={f.field} className={f.field === "name" ? "sm:col-span-2" : ""}>
+                  <FieldLabel htmlFor={f.id}>
+                    {f.label}
+                    {f.optional && (
+                      <span className="font-normal text-zinc-400"> (optional)</span>
+                    )}
+                  </FieldLabel>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
+                      <f.icon size={14} />
+                    </span>
+                    <input
+                      id={f.id}
+                      type={f.type}
+                      autoComplete={f.autoComplete}
+                      value={contact[f.field]}
+                      onChange={(e) => updateContact(f.field, e.target.value)}
+                      placeholder={f.placeholder}
+                      aria-invalid={!!errors[f.field]}
+                      className={`${INPUT} !pl-9 ${errors[f.field] ? INPUT_INVALID : ""}`}
+                    />
+                  </div>
+                  <FieldError>{errors[f.field]}</FieldError>
+                </div>
+              ))}
+
+              <div className="sm:col-span-2">
+                <FieldLabel htmlFor="contact-address">
+                  Address{" "}
+                  <span className="font-normal text-zinc-400">(optional)</span>
+                </FieldLabel>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-3 text-zinc-400">
+                    <MapPin size={14} />
+                  </span>
+                  <textarea
+                    id="contact-address"
+                    rows={3}
+                    autoComplete="street-address"
+                    value={contact.address}
+                    onChange={(e) => updateContact("address", e.target.value)}
+                    placeholder={"12 Market Street\nPortland, OR 97201\nUnited States"}
+                    className={`${INPUT} !pl-9 resize-y`}
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex justify-end gap-2.5">
+            <button type="button" onClick={() => setStep(2)} className={BTN_SECONDARY}>
+              <ArrowLeft size={15} />
+              Back
+            </button>
+            <button type="button" onClick={ev => {
+              goStep4()
+              create_project()
+            }} className={BTN_PRIMARY}>
               Review &amp; deploy
               <ArrowRight size={15} />
             </button>
@@ -935,8 +1581,8 @@ export default function ComboshopVercelOnboarding() {
         </>
       )}
 
-      {/* Step 3 — Review */}
-      {step === 3 && (
+      {/* Step 4 — Review */}
+      {step === 4 && (
         <>
           <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-zinc-900">
             Review &amp; deploy
@@ -945,7 +1591,7 @@ export default function ComboshopVercelOnboarding() {
             Confirm the details before the project is created through the Vercel API.
           </p>
 
-          <Stepper step={3} />
+          <Stepper step={4} />
 
           <Card className="!bg-zinc-950 !border-zinc-800">
             <SectionHeading>
@@ -973,6 +1619,97 @@ export default function ComboshopVercelOnboarding() {
           </Card>
 
           <Card>
+            <SectionHeading
+              action={
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className={`${BTN_ICON} !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 focus-visible:outline-zinc-400`}>
+                  Edit
+                </button>
+              }>
+              STORE CONTACT
+            </SectionHeading>
+            <dl className="space-y-2.5">
+              {[
+                { k: "Name", v: contact.name, icon: User },
+                { k: "Email", v: contact.email, icon: Mail },
+                { k: "Phone", v: contact.phone, icon: Phone },
+                { k: "Address", v: contact.address, icon: MapPin },
+              ].map((row) => (
+                <div key={row.k} className="flex items-baseline gap-2.5 text-xs">
+                  <row.icon size={13} className="shrink-0 translate-y-0.5 text-zinc-400" />
+                  <dt className="w-16 shrink-0 text-zinc-500">{row.k}</dt>
+                  <dd className="min-w-0 flex-1 whitespace-pre-line break-words font-medium text-zinc-800">
+                    {row.v.trim() || (
+                      <span className="font-normal text-zinc-400">not given</span>
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          <Card>
+            <SectionHeading
+              action={
+                <button
+                  type="button"
+                  onClick={downloadEnvFile}
+                  disabled={!buildEnvPayload(dbEnvs).length}
+                  className={`${BTN_ICON} !text-emerald-700 hover:!bg-emerald-50 focus-visible:outline-emerald-500`}>
+                  {envDownloaded ? (
+                    <>
+                      <Check size={13} className="text-emerald-600" />
+                      Downloaded
+                    </>
+                  ) : (
+                    <>
+                      <Download size={13} />
+                      Download .env
+                    </>
+                  )}
+                </button>
+              }>
+              ENVIRONMENT VARIABLES
+            </SectionHeading>
+
+            <p className="mb-3 text-xs leading-relaxed text-zinc-500">
+              These are injected before the first build. Download them as{" "}
+              <code
+                style={FONT_MONO}
+                className="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-700">
+                {envFileName}
+              </code>{" "}
+              and keep the file somewhere private — the API token is generated
+              here and is not shown again after this wizard closes.
+            </p>
+
+            {buildEnvPayload(dbEnvs).length ? (
+              <div
+                style={FONT_MONO}
+                className="space-y-1.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 text-xs">
+                {buildEnvPayload(dbEnvs).map((row) => (
+                  <div key={row.key} className="flex items-baseline gap-2.5">
+                    <span className="w-48 shrink-0 truncate text-zinc-500">
+                      {row.key}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-zinc-800">
+                      {row.value || (
+                        <span className="text-zinc-400">(empty)</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 text-xs text-zinc-500">
+                No variables defined — add them on the configure step.
+              </p>
+            )}
+          </Card>
+
+          <Card>
             <SectionHeading>WHAT WILL HAPPEN</SectionHeading>
             <ul className="space-y-3">
               {[
@@ -980,6 +1717,7 @@ export default function ComboshopVercelOnboarding() {
                 <>Serve the storefront at <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">/</code> and the dashboard at <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">/dashboard</code> from that one project</>,
                 "Inject the environment variables before the first build",
                 "Vercel triggers the initial deployment automatically on creation",
+                <>Keep the store contact with this deployment — Vercel has no field for it, so it travels in the <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{envFileName}</code> download</>,
               ].map((text, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-700">
                   <span className="mt-0.5 flex size-4.5 shrink-0 items-center justify-center rounded-full bg-emerald-100">
@@ -992,15 +1730,45 @@ export default function ComboshopVercelOnboarding() {
           </Card>
 
           <div className="flex justify-end gap-2.5">
-            <button type="button" onClick={() => setStep(2)} className={BTN_SECONDARY}>
+            <button type="button" onClick={() => setStep(3)} className={BTN_SECONDARY}>
               <ArrowLeft size={15} />
-              Edit
+              Back
             </button>
-            <button type="button" onClick={deploy} className={BTN_PRIMARY}>
+            <button type="button" onClick={requestDeploy} className={BTN_PRIMARY}>
               <Rocket size={15} />
               Deploy project
             </button>
           </div>
+
+          {confirmingDeploy && (
+            <ConfirmDialog
+              title={`Deploy without saving ${envFileName}?`}
+              desc={`The ${buildEnvPayload(dbEnvs).length} environment variables have not been downloaded${savedEnvText ? " since you last changed them" : ""}. The API token is generated in this browser and is not shown again once the wizard closes.`}
+              onCancel={() => setConfirmingDeploy(false)}>
+              <button
+                type="button"
+                onClick={() => setConfirmingDeploy(false)}
+                className={`${BTN_SECONDARY} sm:!px-4`}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmingDeploy(false);
+                  deploy();
+                }}
+                className={`${BTN_SECONDARY} sm:!px-4`}>
+                Deploy anyway
+              </button>
+              <button
+                type="button"
+                onClick={downloadThenDeploy}
+                className={`${BTN_PRIMARY} sm:!px-4`}>
+                <Download size={15} />
+                Download &amp; deploy
+              </button>
+            </ConfirmDialog>
+          )}
         </>
       )}
     </Shell>
