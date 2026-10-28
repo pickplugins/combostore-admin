@@ -793,6 +793,7 @@ export default function ComboshopVercelOnboarding() {
     var postData = JSON.stringify({ ...contact, domain: mainDomain, project: dbName });
 
     console.log('create_project 1');
+    console.log(serverUrl);
 
 
     fetch(
