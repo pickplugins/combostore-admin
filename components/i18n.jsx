@@ -38,6 +38,23 @@ function lookup(tree, path) {
     .reduce((node, key) => (node == null ? undefined : node[key]), tree);
 }
 
+/*
+  Bengali numerals. The catalogue writes its own numbers in the right script
+  already - prices, the module count in a headline - but a count the page
+  works out for itself - how many features matched a search, a figure
+  counting up as it scrolls into view - has nowhere to be translated, so it
+  is transliterated here instead.
+
+  `toLocaleString("bn-BD")` would do this, except it also inserts Indian
+  digit grouping, which disagrees with the grouping the catalogue uses. A
+  digit map keeps the two consistent.
+*/
+const BENGALI_DIGITS = "০১২৩৪৫৬৭৮৯";
+
+function toBengaliDigits(text) {
+  return String(text).replace(/[0-9]/g, (d) => BENGALI_DIGITS[Number(d)]);
+}
+
 export function LocaleProvider({ children, defaultLocale = DEFAULT_LOCALE }) {
   /*
     The server render and the first client render have to agree, so the stored
@@ -117,7 +134,38 @@ export function LocaleProvider({ children, defaultLocale = DEFAULT_LOCALE }) {
       return path;
     }
 
-    return { locale, setLocale, t, isBangla: locale === "bn" };
+    /*
+      Arrays of strings - a module's feature list, the rows of a mock table.
+      Naming eighty features one key at a time would bury the catalogue, and
+      next-intl reads the same shape through `t.raw(key)`, so this stays a
+      swap rather than a restructure when the provider is eventually mounted.
+    */
+    function tList(path) {
+      const hit = lookup(MESSAGES[locale], path);
+      if (Array.isArray(hit)) return hit;
+
+      const fallback = lookup(MESSAGES[DEFAULT_LOCALE], path);
+      if (Array.isArray(fallback)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[i18n] missing ${locale} list: ${path}`);
+        }
+        return fallback;
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`[i18n] unknown list: ${path}`);
+      }
+      return [];
+    }
+
+    const isBangla = locale === "bn";
+
+    /* Numbers the page computes rather than reads from the catalogue. */
+    function n(value) {
+      return isBangla ? toBengaliDigits(value) : String(value);
+    }
+
+    return { locale, setLocale, t, tList, n, isBangla };
   }, [locale, setLocale]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;

@@ -7,7 +7,7 @@
     "nav": {
       "platform": "Platform",
       "features": "Features",
-      "ai": "AI",
+      "builder": "Page builder",
       "payments": "Payments",
       "pricing": "Pricing",
       "deploy": "Deploy on Vercel",
@@ -16,24 +16,76 @@
     },
     "hero": {
       "label": "Headless commerce · WordPress + Next.js",
-      "titleBefore": "The ecommerce platform that keeps ",
-      "titleHighlight": "WordPress",
-      "titleAfter": " behind the counter.",
-      "body": "ComboStore puts a Next.js storefront in front of the WordPress admin your team already runs — one deploy, nine business modules, and the payment methods your customers actually use.",
+      "titleBefore": "Everything your shop needs, ",
+      "titleHighlight": "already built",
+      "titleAfter": ".",
+      "body": "Catalogue, orders, stock, accounting, delivery, couriers, a drag-and-drop page builder and every local payment method — one platform, deployed to your own Vercel project in a single click.",
       "ctaPrimary": "Deploy on Vercel",
-      "ctaSecondary": "See how it works",
+      "ctaSecondary": "Explore the features",
       "noCard": "No card required",
+      "trial": "14-day trial",
       "support": "Setup support in Bangla & English"
     },
+    "demo": {
+      "title": "ComboStore admin",
+      "hint": "Pick a screen",
+      "tabs": {
+        "orders": "Orders",
+        "products": "Products",
+        "insights": "Insights",
+        "storefront": "Storefront"
+      },
+      "orders": {
+        "heading": "Today's orders",
+        "cols": [
+          "Order",
+          "Payment",
+          "Total",
+          "Status"
+        ],
+        "rows": [
+          "#1042|bKash|৳1,450|Packed",
+          "#1041|Cash on Delivery|৳890|With rider",
+          "#1040|Nagad|৳2,100|Delivered",
+          "#1039|SSLCommerz|৳760|Refunded"
+        ]
+      },
+      "products": {
+        "heading": "Catalogue",
+        "cols": [
+          "Product",
+          "SKU",
+          "Price",
+          "Stock"
+        ],
+        "rows": [
+          "Tangail handloom saree|TS-01|৳1,450|42 in stock",
+          "Cotton panjabi|CP-07|৳990|6 left",
+          "Leather wallet|LW-03|৳760|88 in stock",
+          "Nakshi kantha throw|NK-11|৳2,100|Out of stock"
+        ]
+      },
+      "insights": {
+        "heading": "Last 7 days",
+        "tiles": [
+          "Revenue|৳38,400|+12%",
+          "Orders|96|+8%",
+          "Incomplete|14|−3%",
+          "Low stock|7|—"
+        ],
+        "caption": "Top selling · Tangail saree, cotton panjabi, nakshi kantha"
+      }
+    },
+    "partners": {
+      "label": "Wired in from day one"
+    },
     "proof": {
-      "modulesValue": "9",
-      "modulesLabel": "Modules included",
-      "paymentsValue": "4",
-      "paymentsLabel": "Payment methods",
-      "deployValue": "1",
-      "deployLabel": "Click to deploy",
-      "languagesValue": "2",
-      "languagesLabel": "Languages supported"
+      "items": {
+        "modules": "Business modules",
+        "features": "Features included",
+        "payments": "Payment methods",
+        "couriers": "Courier partners"
+      }
     },
     "platform": {
       "label": "The architecture",
@@ -60,53 +112,262 @@
         "desc": "Server-rendered category and product pages, incremental revalidation, and a checkout that still works on a slow connection."
       }
     },
-    "features": {
+    "modules": {
       "label": "Everything included",
-      "title": "One dashboard, every part of the business",
-      "body": "From the first product photo to the last delivery confirmation — orders, stock, money and customers stay in one place.",
-      "items": {
+      "title": "Twelve modules. One dashboard.",
+      "body": "No per-module licence and nothing to switch on later. Every module below is included in every plan — read down them, or search the whole platform at once.",
+      "countLabel": "features",
+      "countLabelOne": "feature",
+      "search": {
+        "label": "Search features",
+        "placeholder": "Search features — refunds, couriers, pixels…",
+        "clear": "Clear search",
+        "matches": "features match",
+        "empty": "Nothing matches that.",
+        "emptyHint": "Try a shorter word, or clear the search to browse by module."
+      },
+      "groups": {
+        "catalog": {
+          "name": "Catalogue",
+          "kicker": "Products",
+          "desc": "Build the catalogue once. Variants, brands, tags and reviews all live beside the product, and AI drafts the description while you are still uploading photos.",
+          "items": [
+            "Product management",
+            "Categories",
+            "Tags",
+            "Brands",
+            "Custom attributes",
+            "Product reviews",
+            "Coupons and discounts",
+            "Bulk product upload",
+            "AI product content"
+          ]
+        },
         "orders": {
-          "title": "Order management",
-          "desc": "Every order from placed to delivered, with status your team and your customer both see."
+          "name": "Orders",
+          "kicker": "Sales",
+          "desc": "Every order from placed to delivered — including the ones that never finished checkout, which is usually where the next day's revenue is hiding.",
+          "items": [
+            "Order management",
+            "Incomplete orders",
+            "Refunds",
+            "Subscriptions"
+          ]
         },
-        "products": {
-          "title": "Product management",
-          "desc": "Variants, categories and pricing in the WordPress editor, published straight to the storefront."
+        "inventory": {
+          "name": "Stock",
+          "kicker": "Inventory",
+          "desc": "Live counts with a full history behind them, so you can see what sold, what was adjusted and what is about to run out before a listing goes dark.",
+          "items": [
+            "Stock management",
+            "Stock history",
+            "Low stock products"
+          ]
         },
-        "stock": {
-          "title": "Stock management",
-          "desc": "Live counts across warehouses, with low-stock alerts before a listing goes dark."
+        "insights": {
+          "name": "Insights",
+          "kicker": "Reporting",
+          "desc": "The numbers you actually act on — what sold, who is buying again, and what your staff changed — without exporting anything to a spreadsheet.",
+          "items": [
+            "Stats dashboard",
+            "Activity log",
+            "Top customers",
+            "Top selling products"
+          ]
         },
-        "purchases": {
-          "title": "Purchases & expenses",
-          "desc": "Log supplier invoices and running costs so margin is a number, not a guess."
+        "accounting": {
+          "name": "Accounting",
+          "kicker": "Money",
+          "desc": "Purchases, supplier invoices and running costs sit in the same place as the sales, so margin is a number you can read rather than a number you work out.",
+          "items": [
+            "Accounting",
+            "Expenses",
+            "Purchases"
+          ]
         },
         "delivery": {
-          "title": "Delivery management",
-          "desc": "Assign riders or courier partners, print labels, and push live status to buyers."
+          "name": "Delivery",
+          "kicker": "Logistics",
+          "desc": "Your own riders and the courier companies side by side, with zones and rates that decide what checkout charges.",
+          "items": [
+            "Delivery management",
+            "Local courier",
+            "Shipping zones",
+            "Shipping methods"
+          ]
         },
-        "payments": {
-          "title": "Local payments",
-          "desc": "Cash on Delivery, bKash, Nagad and Rocket wired into checkout — no plugin stack to assemble."
+        "people": {
+          "name": "Team",
+          "kicker": "Roles & users",
+          "desc": "Everyone who touches the shop gets exactly the screens their job needs — managers, support agents, suppliers, riders and affiliates included.",
+          "items": [
+            "Roles and permissions",
+            "Customers",
+            "Store manager",
+            "Support agent",
+            "Suppliers",
+            "Riders",
+            "Bulk add users",
+            "Affiliates"
+          ]
+        },
+        "builder": {
+          "name": "Page builder",
+          "kicker": "Design",
+          "desc": "Build landing pages, product templates, headers and footers by dragging blocks. The Tailwind classes are generated with them, so nothing drifts from the rest of the site.",
+          "items": [
+            "Page builder",
+            "70+ elements",
+            "Template library",
+            "AI template generation",
+            "Landing pages",
+            "Product page templates",
+            "Header and footer manager",
+            "Tailwind auto-styling",
+            "AI custom sections",
+            "Page layout generation"
+          ]
+        },
+        "content": {
+          "name": "Content",
+          "kicker": "Blog & media",
+          "desc": "A blog for the SEO traffic you are not paying for, a media library for everything you have shot, and an assistant that writes the first draft.",
+          "items": [
+            "Blog",
+            "AI blog content",
+            "Media manager"
+          ]
         },
         "support": {
-          "title": "Support tickets",
-          "desc": "Questions and complaints in one queue, with the full order history attached."
+          "name": "Support",
+          "kicker": "Customer care",
+          "desc": "Questions and complaints in one queue with the full order history attached, so nobody has to ask the customer what they bought.",
+          "items": [
+            "Support tickets"
+          ]
         },
-        "ai": {
-          "title": "AI content assistant",
-          "desc": "Draft product descriptions and blog posts in seconds, in Bangla or English."
+        "payments": {
+          "name": "Payments",
+          "kicker": "Checkout",
+          "desc": "Every method your customers already use, configured in the dashboard — no plugin stack to license, wire up and keep in sync.",
+          "items": [
+            "Cash on Delivery",
+            "bKash",
+            "Nagad",
+            "Rocket personal",
+            "Bank transfer",
+            "PayStation",
+            "SSLCommerz",
+            "aamarPay"
+          ]
+        },
+        "integrations": {
+          "name": "Integrations",
+          "kicker": "Tracking & APIs",
+          "desc": "Pixels, analytics and maps are settings rather than code edits — and when something is missing, an extension adds it.",
+          "items": [
+            "Facebook Pixel",
+            "TikTok Pixel",
+            "Google Analytics",
+            "Google Maps",
+            "Microsoft Clarity",
+            "Claude AI",
+            "Custom extensions",
+            "Courier APIs"
+          ]
+        }
+      }
+    },
+    "builder": {
+      "label": "Page builder",
+      "title": "Design the storefront without a designer",
+      "body": "Drag blocks onto the page and the Tailwind styles come with them. Start from a template, or describe the section you want and let AI lay it out.",
+      "elementsLabel": "Elements include",
+      "categories": {
+        "layout": {
+          "name": "Layout",
+          "items": [
+            "Section",
+            "Container",
+            "Grid",
+            "Columns",
+            "Spacer",
+            "Divider",
+            "Tabs",
+            "Accordion"
+          ]
+        },
+        "content": {
+          "name": "Content",
+          "items": [
+            "Heading",
+            "Rich text",
+            "Image",
+            "Icon",
+            "Button",
+            "List",
+            "Quote",
+            "Table"
+          ]
+        },
+        "commerce": {
+          "name": "Commerce",
+          "items": [
+            "Product grid",
+            "Product slider",
+            "Single product",
+            "Add to cart",
+            "Category list",
+            "Price",
+            "Stock badge",
+            "Reviews"
+          ]
         },
         "media": {
-          "title": "Media library",
-          "desc": "Product photos and video in one place, optimised automatically for fast pages."
+          "name": "Media",
+          "items": [
+            "Gallery",
+            "Slider",
+            "Video",
+            "Lightbox",
+            "Banner",
+            "Logo wall"
+          ]
+        },
+        "marketing": {
+          "name": "Marketing",
+          "items": [
+            "Countdown",
+            "Coupon bar",
+            "Newsletter",
+            "Testimonials",
+            "FAQ",
+            "Social links",
+            "WhatsApp button",
+            "Pixel block"
+          ]
         }
+      },
+      "ai": {
+        "title": "AI section generation",
+        "body": "Describe a section and the builder lays it out with real elements and matching Tailwind classes — then you edit it like anything else you dragged in.",
+        "prompt": "A hero for Eid offers with a countdown and two featured products",
+        "button": "Generate section",
+        "working": "Laying out the section…",
+        "again": "Generate again",
+        "note": "Illustrative preview",
+        "blocks": [
+          "Heading",
+          "Countdown",
+          "Product grid · 2 items",
+          "Button · Shop the offer"
+        ]
       }
     },
     "ai": {
       "label": "AI, built in",
       "title": "Let AI write the first draft, every time",
-      "body": "Give the assistant a few details and it drafts a product description, an SEO title, or a full blog post — ready to edit and publish from the same screen.",
+      "body": "Give the assistant a few details and it drafts a product description, a blog post, or a whole page section — ready to edit and publish from the same screen.",
       "points": {
         "descriptions": "Product descriptions drafted from photos and specs",
         "blog": "Blog posts for SEO and seasonal campaigns",
@@ -114,8 +375,25 @@
         "editable": "Every draft stays editable before it publishes"
       },
       "panelTitle": "Content assistant",
-      "prompt": "Write a description for: handloom cotton saree, navy blue, Tangail weave",
-      "answer": "A handwoven Tangail saree in deep navy cotton, finished with a traditional border and a soft, breathable drape built for everyday wear. Perfect for office, festivals, or gifting.",
+      "tabs": {
+        "product": "Product",
+        "blog": "Blog",
+        "template": "Template"
+      },
+      "samples": {
+        "product": {
+          "prompt": "Write a description for: handloom cotton saree, navy blue, Tangail weave",
+          "answer": "A handwoven Tangail saree in deep navy cotton, finished with a traditional border and a soft, breathable drape built for everyday wear. Perfect for office, festivals, or gifting."
+        },
+        "blog": {
+          "prompt": "Blog post: how to pick a saree for Eid, 600 words, friendly tone",
+          "answer": "Eid shopping starts with the weave, not the colour. Here is how to read a handloom label, what a Tangail border tells you about the fabric, and which five pieces work for both the day and the evening."
+        },
+        "template": {
+          "prompt": "Build a product page template for a clothing store",
+          "answer": "Gallery with thumbnails, title and price, variant picker, stock badge, add to cart, delivery estimate by zone, description tabs, reviews, and a related-products slider — all editable blocks."
+        }
+      },
       "useDraft": "Use draft",
       "regenerate": "Regenerate",
       "otherLanguage": "বাংলায় লিখুন"
@@ -123,7 +401,13 @@
     "payments": {
       "label": "Checkout that fits Bangladesh",
       "title": "Get paid the way your customers pay",
-      "body": "Local payment methods come configured out of the box — there is no plugin stack to license, wire up and keep in sync.",
+      "body": "Mobile wallets, card gateways and cash — all configured from the dashboard, with the confirmation landing on the order itself.",
+      "note": "Gateway fees are charged by the provider, not by us.",
+      "tabs": {
+        "wallets": "Mobile wallets",
+        "gateways": "Card gateways",
+        "offline": "Cash & bank"
+      },
       "items": {
         "bkash": {
           "name": "bKash",
@@ -134,12 +418,87 @@
           "desc": "Instant payment confirmation the moment checkout completes."
         },
         "rocket": {
-          "name": "Rocket",
-          "desc": "Mobile banking, configured and ready from day one."
+          "name": "Rocket personal",
+          "desc": "Personal-number payments, matched to the order on confirmation."
+        },
+        "sslcommerz": {
+          "name": "SSLCommerz",
+          "desc": "Cards, net banking and wallets through one hosted checkout."
+        },
+        "aamarpay": {
+          "name": "aamarPay",
+          "desc": "Local card and wallet acquiring with same-day settlement reports."
+        },
+        "paystation": {
+          "name": "PayStation",
+          "desc": "A second card route, so a gateway outage is not a lost sale."
         },
         "cod": {
           "name": "Cash on Delivery",
           "desc": "With delivery confirmation built into the rider workflow."
+        },
+        "bank": {
+          "name": "Bank transfer",
+          "desc": "Upload the slip, approve it against the order, release the stock."
+        }
+      }
+    },
+    "couriers": {
+      "label": "Delivery",
+      "title": "Your riders and the courier companies, in one queue",
+      "body": "Push an order to a courier from the order screen and the tracking comes back to it. Or assign your own rider and keep the delivery in-house.",
+      "items": {
+        "steadfast": {
+          "name": "Steadfast",
+          "desc": "Consignment created from the order, status synced back."
+        },
+        "pathao": {
+          "name": "Pathao",
+          "desc": "City and nationwide delivery with live parcel status."
+        },
+        "redx": {
+          "name": "RedX",
+          "desc": "Pickup requests and delivery updates on the order timeline."
+        },
+        "carrybee": {
+          "name": "Carry Bee",
+          "desc": "Zone-based rates applied at checkout, labels printed in bulk."
+        }
+      },
+      "own": "Own riders, shipping zones and per-zone rates are included — the courier is an option, not a requirement."
+    },
+    "integrations": {
+      "label": "Integrations",
+      "title": "Tracking, maps and AI — settings, not code",
+      "body": "Paste an ID and it is live on the storefront. Nothing here needs a developer, and anything missing can be added as an extension.",
+      "items": {
+        "facebook": {
+          "name": "Facebook Pixel",
+          "desc": "Catalogue and purchase events for retargeting."
+        },
+        "tiktok": {
+          "name": "TikTok Pixel",
+          "desc": "Campaign tracking for the channel your customers scroll."
+        },
+        "analytics": {
+          "name": "Google Analytics",
+          "desc": "Traffic, funnels and ecommerce reporting."
+        },
+        "maps": {
+          "name": "Google Maps",
+          "desc": "Address picking at checkout and delivery zones on a map."
+        },
+        "clarity": {
+          "name": "Microsoft Clarity",
+          "desc": "Session recordings and heatmaps of real shoppers."
+        },
+        "claude": {
+          "name": "Claude AI",
+          "desc": "The model behind the content, template and section drafts."
+        },
+        "extensions": {
+          "name": "Custom extensions",
+          "desc": "Your own modules on the same API and roles."
         }
       }
     },
@@ -149,18 +508,30 @@
       "body": "No per-module licence, and no commission on your orders. Pick a plan by the size of your catalogue and your team — not by which features you are allowed to switch on.",
       "popular": "Most popular",
       "includes": "WHAT YOU GET",
+      "billing": {
+        "label": "Billing period",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "save": "2 months free"
+      },
       "plans": {
         "starter": {
           "name": "Starter",
           "tagline": "A first online shop finding its footing.",
           "price": "৳499",
-          "period": "/ month / 1 Website",
+          "period": "/ month",
           "note": "Billed monthly · cancel anytime",
+          "priceYear": "৳4,990",
+          "periodYear": "/ year",
+          "noteYear": "Billed yearly · two months free",
           "cta": "Start with Starter",
           "points": {
-            "modules": "All nine business modules",
+            "modules": "All twelve modules",
+            "websites": "One website",
             "products": "Up to 300 products",
             "payments": "bKash, Nagad, Rocket and Cash on Delivery",
+            "builder": "Page builder with 70+ elements",
+            "ai": "AI product and blog content",
             "deploy": "One-click deploy to Vercel",
             "support": "Email support in Bangla and English"
           }
@@ -169,14 +540,20 @@
           "name": "Business",
           "tagline": "A growing shop with a team behind the counter.",
           "price": "৳1,900",
-          "period": "/ month / 5 Website",
-          "note": "Billed monthly · two months free on yearly",
+          "period": "/ month",
+          "note": "Billed monthly · cancel anytime",
+          "priceYear": "৳19,000",
+          "periodYear": "/ year",
+          "noteYear": "Billed yearly · two months free",
           "cta": "Start with Business",
           "points": {
             "everything": "Everything in Starter",
+            "websites": "Up to five websites",
             "products": "Unlimited products and categories",
             "staff": "Five staff accounts with roles",
+            "gateways": "SSLCommerz, aamarPay and PayStation",
             "courier": "Courier integrations with live tracking",
+            "ai": "AI templates and section generation",
             "support": "Priority support on phone and WhatsApp"
           }
         },
@@ -186,6 +563,9 @@
           "price": "Custom",
           "period": "",
           "note": "Scoped to your catalogue and volume",
+          "priceYear": "Custom",
+          "periodYear": "",
+          "noteYear": "Scoped to your catalogue and volume",
           "cta": "Talk to sales",
           "points": {
             "everything": "Everything in Business",
@@ -201,6 +581,36 @@
         "trial": "14-day trial on every plan",
         "vat": "Prices exclude VAT",
         "hosting": "Vercel and WordPress hosting billed separately"
+      }
+    },
+    "faq": {
+      "label": "Questions",
+      "title": "Before you deploy",
+      "items": {
+        "wordpress": {
+          "q": "Do I need to know WordPress?",
+          "a": "No more than you already do. The admin is the WordPress editor your team can learn in an afternoon, and every commerce screen — orders, stock, delivery — is built by us on top of it."
+        },
+        "hosting": {
+          "q": "Where does my store run?",
+          "a": "On your own accounts. The storefront is deployed to your Vercel project and the admin sits on your WordPress hosting, so the data and the domain stay yours. Those two bills are separate from your plan."
+        },
+        "domain": {
+          "q": "Can I use my own domain?",
+          "a": "Yes — the onboarding wizard adds it to the Vercel project for you, and the storefront serves it as soon as the DNS resolves."
+        },
+        "payments": {
+          "q": "Are the payment gateways really included?",
+          "a": "The integrations are. You still open your own merchant account with bKash, Nagad, SSLCommerz or whoever you choose, and their transaction fees are theirs to charge — we take no commission on your orders."
+        },
+        "migration": {
+          "q": "Can I move an existing shop over?",
+          "a": "Products, categories and customers come across by bulk upload, and the Business and Enterprise plans include help doing it. Tell us what you are on now and we will tell you honestly how much work it is."
+        },
+        "ai": {
+          "q": "What does the AI actually write?",
+          "a": "Product descriptions, SEO titles, blog posts and page sections. Every draft lands in the editor for you to change, and nothing publishes on its own."
+        }
       }
     },
     "cta": {
@@ -237,7 +647,12 @@
       "privacy": "Privacy Policy",
       "refund": "Refund Policy",
       "copyright": "© 2026 ComboStore. Made for Bangladesh.",
-      "location": "Dhaka · Bangladesh"
+      "location": "Dhaka · Bangladesh",
+      "modules": "All features",
+      "builderLink": "Page builder",
+      "couriers": "Couriers",
+      "integrations": "Integrations",
+      "faq": "FAQ"
     }
   }
 }
