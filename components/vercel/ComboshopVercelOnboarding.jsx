@@ -8,6 +8,7 @@ import {
   Check,
   CircleAlert,
   Copy,
+  CreditCard,
   Download,
   ExternalLink,
   Eye,
@@ -24,13 +25,54 @@ import {
   Rocket,
   Server,
   ShieldAlert,
+  ShieldCheck,
   Store,
   Trash2,
   User,
 } from "lucide-react";
 
+import enMessages from "../../messages/en.json";
+
 
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+
+/*
+  Paddle Billing, from the browser only. This wizard has no API routes of its
+  own - whatever it does not do against the Vercel API it posts to WordPress -
+  so checkout runs through Paddle.js and the finished transaction is handed to
+  WordPress afterwards. Nothing here is proof of payment on its own: the
+  authoritative record is Paddle's webhook arriving at the WordPress side,
+  which is also where the secret key belongs.
+
+  Sandbox is the default deliberately. An unset `NEXT_PUBLIC_PADDLE_ENV` must
+  not charge a real card - going live is an explicit `production` in `.env`.
+*/
+const PADDLE_JS_SRC = "https://cdn.paddle.com/paddle/v2/paddle.js";
+const PADDLE_ENV = process.env.NEXT_PUBLIC_PADDLE_ENV || "sandbox";
+const PADDLE_CLIENT_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
+const PADDLE_CONFIGURED = Boolean(PADDLE_CLIENT_TOKEN);
+
+/*
+  ComboStore's two Paddle subscriptions, by plan key. Enterprise is absent on
+  purpose: its price is "Custom", so it is a sales conversation rather than a
+  checkout, and a plan missing from this map is treated as unbilled.
+
+  `envKey` is carried so a plan whose price id was never set can name the
+  variable that is missing instead of opening an overlay with no items. The
+  `process.env` reads are written out one by one because Next.js inlines
+  `NEXT_PUBLIC_*` by static text match - `process.env[key]` would arrive
+  undefined in the browser.
+*/
+const PADDLE_PLAN_PRICES = {
+  starter: {
+    envKey: "NEXT_PUBLIC_PADDLE_PRICE_STARTER",
+    priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_STARTER || "",
+  },
+  business: {
+    envKey: "NEXT_PUBLIC_PADDLE_PRICE_BUSINESS",
+    priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_BUSINESS || "",
+  },
+};
 
 
 
@@ -67,6 +109,7 @@ const WP_PLUGINS = [
     name: "Combo Store — Server",
     note: "The commerce models and REST layer",
     href: "https://github.com/pickplugins/combostore-server",
+    download: "https://github.com/pickplugins/combostore-server/archive/refs/heads/master.zip",
   },
   {
     name: "Enable CORS",
@@ -82,11 +125,55 @@ const WP_PLUGINS = [
 
 const CORS_PLUGIN = WP_PLUGINS.find((plugin) => plugin.name === "Enable CORS");
 
+/*
+  The plans come from the same catalogue the landing page's pricing section
+  reads, so the wizard cannot quote a price the site has stopped offering -
+  changing a tier means editing `messages/*.json` and nothing else.
+
+  This wizard is English-only: it has no `LocaleProvider` above it and every
+  string in it is hard-coded, so `en.json` is read directly rather than through
+  `useI18n`. If the wizard is ever translated, this is the line to revisit.
+
+  Only the first three checklist rows are carried over. The landing page has
+  the room for all six; here they are a reminder of what the tier is, under a
+  row that has to stay one glance tall.
+*/
+const PLAN_ORDER = ["starter", "business", "enterprise"];
+
+const PLAN_OPTIONS = PLAN_ORDER.map((key) => {
+  const plan = enMessages.landing.pricing.plans[key];
+  const paddle = PADDLE_PLAN_PRICES[key];
+
+  return {
+    key,
+    name: plan.name,
+    tagline: plan.tagline,
+    price: plan.price,
+    period: plan.period,
+    points: Object.values(plan.points).slice(0, 3),
+    /* `billed` is "this tier is sold through Paddle at all", which is not the
+       same as having a usable price id - an empty `priceId` on a billed plan
+       is a configuration gap, and the two read differently on screen. */
+    billed: Boolean(paddle),
+    priceId: paddle?.priceId || "",
+    priceEnvKey: paddle?.envKey || "",
+  };
+});
+
+/*
+  Step 4 is optional in that no plan has to be picked - the project deploys
+  either way. Picking one that Paddle sells does gate the wizard: checkout has
+  to finish before the review opens, which is the reason the plan sits ahead of
+  the review rather than after it. Paying for a store and then abandoning the
+  deploy is a support ticket; reviewing a deployment whose plan is already paid
+  for is just the summary telling the truth.
+*/
 const STEPS = [
   { n: 1, label: "Credentials" },
   { n: 2, label: "Configure" },
   { n: 3, label: "Contact" },
-  { n: 4, label: "Review" },
+  { n: 4, label: "Plan", optional: true },
+  { n: 5, label: "Review" },
 ];
 
 /* The store owner Combo Store writes into the project's records. */
@@ -220,6 +307,132 @@ function downloadTextFile(filename, text) {
 
 
 
+/*
+  Paddle.js is fetched on demand rather than from the page `<head>`: three
+  steps are filled in before the plan exists, and a wizard that never reaches
+  it should not pull a payment SDK in at all.
+
+  The promise is cached at module scope so a remount - or two clicks racing the
+  first load - share one script tag and one `Initialize`, which Paddle honours
+  only once per page load anyway.
+*/
+let paddlePromise = null;
+
+/*
+  `Initialize` takes its event callback once and keeps it, so what it gets is a
+  trampoline into whatever wizard is currently mounted. Without the indirection
+  the first mount's closure would go on receiving checkout events after a
+  remount and set state on a component that no longer exists.
+*/
+let paddleEventSink = null;
+
+function initPaddle() {
+  return new Promise((resolve, reject) => {
+    if (window.Paddle) {
+      resolve(window.Paddle);
+      return;
+    }
+
+    /*
+      A request held open by a proxy, or a `<script>` an extension neutered
+      without failing it, fires neither event - and a checkout stuck on
+      "loading" reads as a broken wizard rather than a blocked CDN. So the wait
+      is cut off, the same way the WordPress probe cuts off a domain that never
+      answers.
+    */
+    const timer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            "Paddle.js did not load within 15 seconds - cdn.paddle.com is unreachable from this browser."
+          )
+        ),
+      15000
+    );
+    const settle = (done, value) => {
+      clearTimeout(timer);
+      done(value);
+    };
+
+    const existing = document.querySelector(`script[src="${PADDLE_JS_SRC}"]`);
+    const script = existing || document.createElement("script");
+
+    script.addEventListener("load", () =>
+      window.Paddle
+        ? settle(resolve, window.Paddle)
+        : settle(
+            reject,
+            new Error("Paddle.js loaded but window.Paddle never appeared.")
+          )
+    );
+    script.addEventListener("error", () =>
+      settle(
+        reject,
+        new Error(
+          "Paddle.js could not be loaded - cdn.paddle.com was blocked by the network or a browser extension."
+        )
+      )
+    );
+
+    if (!existing) {
+      script.src = PADDLE_JS_SRC;
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }).then((paddle) => {
+    paddle.Environment.set(PADDLE_ENV);
+    paddle.Initialize({
+      token: PADDLE_CLIENT_TOKEN,
+      eventCallback: (event) => paddleEventSink?.(event),
+    });
+    return paddle;
+  });
+}
+
+/*
+  Hand a finished transaction to WordPress. Everything it needs rides in on
+  `custom_data`, which is why this lives out here: it reads no component state,
+  so an overlay that sat open for minutes - or a wizard that remounted behind
+  it - cannot post a stale project, domain or contact.
+
+  Fire and forget, like `create_project`: Paddle has taken the money either
+  way, the transaction id is on screen and in the `.env` download, and the
+  record WordPress trusts is the one its own Paddle webhook writes. A store
+  whose REST route is not deployed yet must not break a checkout.
+*/
+function record_subscription(payload) {
+  fetch(serverUrl + "wp-json/combostore-admin/v2/record_subscription", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        console.warn(
+          `record_subscription: WordPress answered HTTP ${response.status}. The transaction is only in this browser and in Paddle.`
+        );
+      }
+    })
+    .catch(() => {
+      console.warn(
+        "record_subscription: WordPress could not be reached. The transaction is only in this browser and in Paddle."
+      );
+    });
+}
+
+function loadPaddle() {
+  if (paddlePromise) return paddlePromise;
+
+  /* A failed load is not cached: the usual causes are a blocked CDN or a
+     dropped connection, and both are worth the retry button. */
+  paddlePromise = initPaddle().catch((error) => {
+    paddlePromise = null;
+    throw error;
+  });
+
+  return paddlePromise;
+}
+
 /* ── Primitives ─────────────────────────────────────────────────── */
 
 function Card({ children, className = "" }) {
@@ -307,6 +520,13 @@ function Stepper({ step }) {
                 className={`hidden text-sm transition-colors sm:block ${current ? "font-semibold text-zinc-900" : "text-zinc-500"
                   }`}>
                 {s.label}
+                {/* Held back to `md` so five labels and this one never have to
+                    share a 640px row. */}
+                {s.optional && (
+                  <span className="hidden font-normal text-zinc-400 md:inline">
+                    {" "}(optional)
+                  </span>
+                )}
               </span>
             </div>
             {i < STEPS.length - 1 && (
@@ -547,6 +767,27 @@ export default function ComboshopVercelOnboarding() {
   */
   const [savedEnvText, setSavedEnvText] = useState("");
   const [confirmingDeploy, setConfirmingDeploy] = useState(false);
+  /* Empty until step 4, and allowed to stay that way - the plan is optional. */
+  const [plan, setPlan] = useState("");
+
+  /*
+    Paddle.js, loaded when the plan step opens. "unavailable" is a checkout
+    that cannot be reached - a blocked CDN, or a `.env` with no client token -
+    and is kept distinct from "idle" because it is the one case where a paid
+    plan does not gate the review: stranding a deploy behind an overlay that
+    will never open is worse than recording a plan and billing it afterwards.
+  */
+  const [paddleStatus, setPaddleStatus] = useState("idle");
+  const [paddleError, setPaddleError] = useState("");
+  /* Which plan's overlay is open, so only that row reads as busy. */
+  const [checkoutBusy, setCheckoutBusy] = useState("");
+  /*
+    What Paddle reported for a completed checkout. The transaction id is the
+    only handle anything downstream has on the subscription, so it travels into
+    the review, the deployment record and the `.env` download rather than
+    living for only as long as this tab is open.
+  */
+  const [subscription, setSubscription] = useState(null);
 
   /*
     Whether the WordPress side has answered. Nothing after step 2 is worth
@@ -699,6 +940,26 @@ export default function ComboshopVercelOnboarding() {
         every runtime that reads the environment.
       */
       ...(contactLines.length ? ["", "Store contact", ...contactLines] : []),
+      /*
+        A comment, not a variable, for the same reason the contact is: the plan
+        is a record of what this deployment was signed up for, not something
+        the build reads.
+      */
+      ...(planChoice ? ["", `Plan:      ${planSummary}`] : []),
+      /*
+        The Paddle transaction id, for much the same reason the API token is
+        here: it is minted outside this wizard, shown once, and it is what
+        support needs to tie a store to a subscription.
+      */
+      ...(subscription?.transactionId
+        ? [
+            `Paddle:    ${subscription.environment || PADDLE_ENV}`,
+            `Txn:       ${subscription.transactionId}`,
+            ...(subscription.customerId
+              ? [`Customer:  ${subscription.customerId}`]
+              : []),
+          ]
+        : []),
       "",
       "Keep this file private - it contains the store's API token.",
     ]);
@@ -714,6 +975,23 @@ export default function ComboshopVercelOnboarding() {
     so a second download differing only by its `Generated:` timestamp does not
     read as a change.
   */
+  const planChoice = PLAN_OPTIONS.find((option) => option.key === plan) || null;
+  const planSummary = planChoice
+    ? `${planChoice.name} — ${planChoice.price}${planChoice.period ? ` ${planChoice.period}` : ""}`
+    : "";
+
+  /*
+    A selected plan that Paddle can actually sell has to be paid for before the
+    review. The three ways past the gate are all deliberate: no plan at all,
+    Enterprise - quoted by hand, so there is no price id to charge - and a
+    checkout that could not be reached, which is a configuration problem on
+    this side rather than something to hold a deploy hostage over.
+  */
+  const planNeedsPayment =
+    Boolean(planChoice?.priceId) && paddleStatus !== "unavailable";
+  const planPaid = Boolean(subscription && subscription.plan === plan);
+  const canLeavePlanStep = !planNeedsPayment || planPaid;
+
   const envBody = serializeEnvFile(dbEnvs);
   const hasEnvs = buildEnvPayload(dbEnvs).length > 0;
   const envSaved = hasEnvs && savedEnvText === envBody;
@@ -793,7 +1071,7 @@ export default function ComboshopVercelOnboarding() {
     var postData = JSON.stringify({ ...contact, domain: mainDomain, project: dbName });
 
     console.log('create_project 1');
-    console.log(serverUrl);
+    console.log(postData);
 
 
     fetch(
@@ -937,12 +1215,170 @@ export default function ComboshopVercelOnboarding() {
 
 
   /*
+    Every checkout event Paddle raises arrives here. The plan comes off
+    `custom_data` rather than out of `plan` state for the same reason
+    `record_subscription` sits at module scope: this callback is installed once,
+    and reading state from inside it would report whatever was selected when
+    Paddle was initialised - or, after a remount, nothing at all.
+  */
+  const onPaddleEvent = useCallback((event) => {
+    const { name, data } = event || {};
+
+    switch (name) {
+      case "checkout.completed": {
+        setSubscription({
+          plan: data?.custom_data?.plan || "",
+          transactionId: data?.transaction_id || "",
+          customerId: data?.customer?.id || "",
+          priceId: data?.items?.[0]?.price_id || "",
+          total:
+            data?.totals?.total != null
+              ? `${data.totals.total} ${data?.currency_code || ""}`.trim()
+              : "",
+          environment: PADDLE_ENV,
+          at: new Date().toISOString(),
+        });
+        setCheckoutBusy("");
+        setPaddleError("");
+        /* The overlay is left open on purpose: Paddle shows its own receipt,
+           and pulling it away the instant a card clears reads as a crash. */
+        record_subscription({
+          plan: data?.custom_data?.plan || "",
+          project: data?.custom_data?.project || "",
+          domain: data?.custom_data?.domain || "",
+          contact_name: data?.custom_data?.contact_name || "",
+          contact_email: data?.custom_data?.contact_email || "",
+          transaction_id: data?.transaction_id || "",
+          customer_id: data?.customer?.id || "",
+          price_id: data?.items?.[0]?.price_id || "",
+          environment: PADDLE_ENV,
+        });
+        break;
+      }
+
+      /* Closing the overlay is not a failure - nothing was charged and the
+         plan is still selected, so only the busy flag is cleared. */
+      case "checkout.closed":
+        setCheckoutBusy("");
+        break;
+
+      case "checkout.error":
+      case "checkout.payment.failed":
+        setCheckoutBusy("");
+        setPaddleError(
+          data?.error?.detail ||
+            "Paddle could not take that payment. Nothing was charged - try again or use another card."
+        );
+        break;
+
+      default:
+        break;
+    }
+  }, []);
+
+  /* Point the module-level trampoline at this mount, and let go of it on the
+     way out so a stale handler cannot outlive the component. */
+  useEffect(() => {
+    paddleEventSink = onPaddleEvent;
+    return () => {
+      if (paddleEventSink === onPaddleEvent) paddleEventSink = null;
+    };
+  }, [onPaddleEvent]);
+
+  /*
+    Fetch and initialise Paddle.js, as a callback rather than inline in the
+    effect below. It used to be inline, guarded by a `live` flag cleared on
+    cleanup - and the flag killed its own result every time: the effect watches
+    `paddleStatus`, the effect sets `paddleStatus` to "loading", and React runs
+    the previous pass's cleanup before the next one. So the load resolved into
+    a dead handler and the step sat on "Loading checkout" with the Subscribe
+    button disabled for good.
+
+    There is no cancel flag here on purpose. A resolved load is a fact about
+    the page, not about this render: `window.Paddle` either exists or it does
+    not, and recording that late is harmless.
+  */
+  const loadCheckout = useCallback(() => {
+    if (!PADDLE_CONFIGURED) {
+      setPaddleStatus("unavailable");
+      setPaddleError(
+        "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not set, so checkout cannot open. A plan can still be recorded with this deployment and billed afterwards."
+      );
+      return;
+    }
+
+    setPaddleStatus("loading");
+    setPaddleError("");
+
+    loadPaddle()
+      .then(() => setPaddleStatus("ready"))
+      .catch((error) => {
+        setPaddleStatus("unavailable");
+        setPaddleError(error?.message || "Paddle.js could not be initialised.");
+      });
+  }, []);
+
+  /* Load Paddle when the plan step opens, and leave a failure alone until the
+     operator retries - the same shape as the WordPress probe above. */
+  useEffect(() => {
+    if (step === 4 && paddleStatus === "idle") loadCheckout();
+  }, [step, paddleStatus, loadCheckout]);
+
+  /*
+    Open the overlay for one plan. The email from step 3 is prefilled so the
+    subscription lands on the same person the deployment is recorded to, and
+    everything WordPress needs to match a webhook to a store goes into
+    `custom_data` - by the time Paddle calls, this page may be long gone.
+  */
+  const openCheckout = (option) => {
+    if (!option?.priceId || paddleStatus !== "ready" || !window.Paddle) return;
+
+    const email = contact.email.trim();
+
+    setPaddleError("");
+    setCheckoutBusy(option.key);
+
+    try {
+      window.Paddle.Checkout.open({
+        settings: {
+          displayMode: "overlay",
+          theme: "light",
+          /* With an email carried over from step 3 there is no account to log
+             out of; without one the overlay has to be free to ask. */
+          allowLogout: !email,
+        },
+        items: [{ priceId: option.priceId, quantity: 1 }],
+        ...(email ? { customer: { email } } : null),
+        customData: {
+          plan: option.key,
+          project: dbName,
+          domain: mainDomain,
+          contact_name: contact.name.trim(),
+          contact_email: email,
+        },
+      });
+    } catch (error) {
+      setCheckoutBusy("");
+      setPaddleStatus("unavailable");
+      setPaddleError(error?.message || "Paddle refused to open the checkout.");
+    }
+  };
+
+  /*
     Deploying is the last point at which the generated API token and the store
     contact are recoverable from the browser, so an unsaved `.env` gets a
     confirmation first rather than being lost in silence.
   */
   const requestDeploy = () => {
-
+    /*
+      Belt and braces. Step 5 is only reachable through the plan gate, but a
+      deploy that quietly ships a paid plan nobody paid for is the kind of bug
+      a later edit to the navigation would introduce in silence.
+    */
+    if (!canLeavePlanStep) {
+      setStep(4);
+      return;
+    }
 
     console.log(envSaved);
     console.log(hasEnvs);
@@ -971,6 +1407,13 @@ export default function ComboshopVercelOnboarding() {
     setVercelToken("");
     setMainDomain("");
     setContact(EMPTY_CONTACT);
+    setPlan("");
+    /* The loaded script survives a reset - it is page-level - but the
+       transaction must not: the next store is a different subscription. */
+    setSubscription(null);
+    setPaddleStatus("idle");
+    setPaddleError("");
+    setCheckoutBusy("");
     setSavedEnvText("");
     setConfirmingDeploy(false);
     setLogs([]);
@@ -1008,6 +1451,26 @@ export default function ComboshopVercelOnboarding() {
           <p className="mt-1.5 text-sm text-zinc-500">
             The Vercel project is live and {mainDomain} is assigned.
           </p>
+          {planChoice ? (
+            <>
+              <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                <Check size={12} />
+                {planSummary}
+              </p>
+              {subscription?.transactionId && (
+                <p
+                  style={FONT_MONO}
+                  className="mt-2 text-[11px] text-zinc-500">
+                  Paddle {subscription.environment || PADDLE_ENV} · txn{" "}
+                  {subscription.transactionId}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="mt-3 text-xs text-zinc-500">
+              No plan chosen — one can be picked later from the dashboard.
+            </p>
+          )}
         </div>
 
         <Card>
@@ -1103,7 +1566,7 @@ export default function ComboshopVercelOnboarding() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={() => { setDeploying(false); setStep(4); }}
+                onClick={() => { setDeploying(false); setStep(5); }}
                 className={BTN_SECONDARY}>
                 <ArrowLeft size={15} />
                 Back to review
@@ -1142,7 +1605,7 @@ export default function ComboshopVercelOnboarding() {
               {WP_PLUGINS.map((p) => (
                 <a
                   key={p.href}
-                  href={p.href}
+                  href={p.download ?? p.href}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 px-3.5 py-3 transition-colors hover:border-zinc-300 hover:bg-zinc-50">
@@ -1565,7 +2028,7 @@ export default function ComboshopVercelOnboarding() {
             <button
               type="button"
               onClick={() => setStep(3)}
-              disabled={wpStatus !== "ok"}
+              // disabled={wpStatus !== "ok"}
               className={BTN_PRIMARY}>
               Continue
               <ArrowRight size={15} />
@@ -1655,24 +2118,359 @@ export default function ComboshopVercelOnboarding() {
               goStep4()
               create_project()
             }} className={BTN_PRIMARY}>
-              Review &amp; deploy
+              Plan
               <ArrowRight size={15} />
             </button>
           </div>
         </>
       )}
 
-      {/* Step 4 — Review */}
+      {/* Step 4 — Plan (optional) */}
       {step === 4 && (
         <>
           <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-zinc-900">
-            Review &amp; deploy
+            Choose a plan
           </h1>
           <p className="mb-7 text-sm text-zinc-500">
-            Confirm the details before the project is created through the Vercel API.
+            Optional — skip it and the store still deploys. Picking Starter or
+            Business opens Paddle checkout, and that has to finish before the
+            review.
           </p>
 
           <Stepper step={4} />
+
+          <Card>
+            <SectionHeading
+              action={
+                subscription ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                    <ShieldCheck size={13} />
+                    Subscribed
+                  </span>
+                ) : plan ? (
+                  <button
+                    type="button"
+                    onClick={() => setPlan("")}
+                    className={`${BTN_ICON} !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 focus-visible:outline-zinc-400`}>
+                    Clear
+                  </button>
+                ) : null
+              }>
+              PLAN <span className="font-normal text-zinc-400">(optional)</span>
+            </SectionHeading>
+
+            {/*
+              Buttons rather than real radios: `globals.css` restyles bare
+              inputs, and a clickable row this tall is easier to hit than a
+              13px dot. The roles are set by hand so it still reads as one
+              group, and clicking the selected row clears it - that is the only
+              way back to "no plan" once something is picked.
+
+              Once Paddle has taken a payment the group locks. These rows are a
+              signup choice, not a billing screen: switching plans after a
+              charge would leave the wizard recording a plan nobody paid for,
+              and refunds and upgrades belong in the dashboard.
+            */}
+            <div role="radiogroup" aria-label="ComboStore plan" className="space-y-2.5">
+              {PLAN_OPTIONS.map((option) => {
+                const selected = plan === option.key;
+                const paidFor = subscription?.plan === option.key;
+                const locked = Boolean(subscription) && !paidFor;
+
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={locked}
+                    onClick={() => {
+                      if (subscription) return;
+                      setPlan(selected ? "" : option.key);
+                    }}
+                    className={`block w-full !rounded-xl !border !px-4 !py-3.5 text-left !shadow-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${selected
+                      ? "!border-emerald-500 !bg-emerald-50/50"
+                      : "!border-zinc-200 !bg-white hover:!border-zinc-300 hover:!bg-zinc-50"
+                      }`}>
+                    <span className="flex items-start gap-3">
+                      <span
+                        className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors ${selected
+                          ? "border-emerald-600 bg-emerald-600"
+                          : "border-zinc-300 bg-white"
+                          }`}>
+                        {selected && <Check size={12} className="text-white" />}
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                          <span className="text-sm font-semibold text-zinc-900">
+                            {option.name}
+                            {paidFor && (
+                              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 align-middle text-[10px] font-semibold tracking-wide text-emerald-700">
+                                <Check size={9} />
+                                PAID
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-sm font-semibold text-zinc-900">
+                            {option.price}
+                            {option.period && (
+                              <span className="font-normal text-zinc-500">
+                                {" "}{option.period}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+
+                        <span className="mt-0.5 block text-xs text-zinc-500">
+                          {option.tagline}
+                        </span>
+
+                        <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                          {option.points.map((point) => (
+                            <span
+                              key={point}
+                              className="inline-flex items-center gap-1 text-[11px] text-zinc-500">
+                              <Check size={10} className="shrink-0 text-emerald-600" />
+                              {point}
+                            </span>
+                          ))}
+                        </span>
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/*
+              Checkout only appears under a plan Paddle can actually sell.
+              Enterprise says why it cannot be bought here, and a billed plan
+              whose price id never made it into `.env` names the variable that
+              is missing rather than opening an overlay with nothing in it.
+            */}
+            {planChoice && (
+              <div className="mt-4">
+                {planPaid ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+                    <div className="flex items-start gap-2.5">
+                      <ShieldCheck size={15} className="mt-0.5 shrink-0 text-emerald-600" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-emerald-900">
+                          Subscription active
+                          {subscription.environment !== "production" && (
+                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800">
+                              {subscription.environment.toUpperCase()}
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-emerald-800">
+                          Paddle took the payment for {planSummary}
+                          {subscription.total ? ` (${subscription.total})` : ""}. The
+                          plan is locked for the rest of this wizard — change it
+                          later from the dashboard.
+                        </p>
+                        <div
+                          style={FONT_MONO}
+                          className="mt-2 space-y-1 text-[11px] text-emerald-900/80">
+                          <div className="truncate">
+                            txn {subscription.transactionId || "—"}
+                          </div>
+                          {subscription.customerId && (
+                            <div className="truncate">
+                              customer {subscription.customerId}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : !planChoice.billed ? (
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
+                    <p className="text-xs leading-relaxed text-zinc-600">
+                      <span className="font-medium text-zinc-800">
+                        {planChoice.name}
+                      </span>{" "}
+                      is priced per store, so there is nothing to charge here. The
+                      plan is recorded with the deployment and sales scope it with{" "}
+                      {contact.email.trim() || "the store owner"}.
+                    </p>
+                  </div>
+                ) : !planChoice.priceId ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+                    <div className="flex items-start gap-2.5">
+                      <ShieldAlert size={15} className="mt-0.5 shrink-0 text-amber-600" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-amber-900">
+                          Checkout not configured
+                        </p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+                          <code
+                            style={FONT_MONO}
+                            className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px]">
+                            {planChoice.priceEnvKey}
+                          </code>{" "}
+                          is missing, so this plan cannot be paid for here. It is
+                          still recorded with the deployment and can be billed
+                          afterwards.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : paddleStatus === "unavailable" ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+                    <div className="flex items-start gap-2.5">
+                      <ShieldAlert size={15} className="mt-0.5 shrink-0 text-amber-600" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-amber-900">
+                          Checkout unavailable
+                        </p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+                          {paddleError}
+                        </p>
+                        {PADDLE_CONFIGURED && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaddleStatus("idle");
+                              setPaddleError("");
+                            }}
+                            className={`${BTN_ICON} mt-2 !text-amber-800 hover:!bg-amber-100 focus-visible:outline-amber-500`}>
+                            <RefreshCw size={12} />
+                            Try again
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-zinc-900">
+                          {planChoice.price}
+                          {planChoice.period && (
+                            <span className="font-normal text-zinc-500">
+                              {" "}{planChoice.period}
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          Charged by Paddle
+                          {contact.email.trim() ? ` to ${contact.email.trim()}` : ""} —
+                          the receipt and the card details stay with them.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openCheckout(planChoice)}
+                        disabled={paddleStatus !== "ready" || Boolean(checkoutBusy)}
+                        className={BTN_PRIMARY}>
+                        {paddleStatus === "loading" ? (
+                          <>
+                            <Loader2 size={15} className="animate-spin" />
+                            Loading checkout…
+                          </>
+                        ) : checkoutBusy ? (
+                          <>
+                            <Loader2 size={15} className="animate-spin" />
+                            Waiting for Paddle…
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard size={15} />
+                            Subscribe
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {paddleError && (
+                      <p className="mt-2.5 flex items-start gap-1.5 text-xs text-red-600">
+                        <CircleAlert size={13} className="mt-0.5 shrink-0" />
+                        {paddleError}
+                      </p>
+                    )}
+
+                    {PADDLE_ENV !== "production" && (
+                      <p className="mt-2.5 text-[11px] leading-relaxed text-amber-700">
+                        Paddle is in{" "}
+                        <span className="font-semibold">{PADDLE_ENV}</span> mode —
+                        use a test card, no real money moves. Set{" "}
+                        <code
+                          style={FONT_MONO}
+                          className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px]">
+                          NEXT_PUBLIC_PADDLE_ENV=production
+                        </code>{" "}
+                        to charge for real.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+              {planChoice ? (
+                <>
+                  <span className="font-medium text-zinc-700">{planSummary}</span>{" "}
+                  is recorded with this deployment and written into the{" "}
+                  <code
+                    style={FONT_MONO}
+                    className="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-700">
+                    {envFileName}
+                  </code>{" "}
+                  download
+                  {subscription?.transactionId
+                    ? ", with the Paddle transaction id beside it."
+                    : "."}
+                  {planNeedsPayment && !planPaid
+                    ? " Checkout has to finish before the review opens."
+                    : ""}
+                </>
+              ) : (
+                "Nothing selected. The store deploys without a plan and keeps working — pick one whenever the trial is up."
+              )}
+            </p>
+          </Card>
+
+          {!canLeavePlanStep && (
+            <p className="mb-3 flex items-center justify-end gap-1.5 text-xs text-zinc-500">
+              <CircleAlert size={13} className="shrink-0 text-amber-500" />
+              Finish the Paddle checkout for {planChoice?.name}, or clear the plan,
+              to continue.
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2.5">
+            <button type="button" onClick={() => setStep(3)} className={BTN_SECONDARY}>
+              <ArrowLeft size={15} />
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(5)}
+              disabled={!canLeavePlanStep}
+              className={BTN_PRIMARY}>
+              Review
+              <ArrowRight size={15} />
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Step 5 — Review */}
+      {step === 5 && (
+        <>
+          <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-zinc-900">
+            Review the project
+          </h1>
+          <p className="mb-7 text-sm text-zinc-500">
+            Confirm the details — the project is created from here through the
+            Vercel API.
+          </p>
+
+          <Stepper step={5} />
 
           <Card className="!bg-zinc-950 !border-zinc-800">
             <SectionHeading>
@@ -1686,6 +2484,15 @@ export default function ComboshopVercelOnboarding() {
                 { k: "Dashboard", v: `${mainDomain}/dashboard` },
                 { k: "Framework", v: framework || "auto-detect" },
                 { k: "Variables", v: `${buildEnvPayload(dbEnvs).length} injected` },
+                { k: "Plan", v: planSummary || "none chosen" },
+                ...(subscription?.transactionId
+                  ? [
+                      {
+                        k: "Billing",
+                        v: `Paddle ${subscription.environment || PADDLE_ENV} · ${subscription.transactionId}`,
+                      },
+                    ]
+                  : []),
               ].map((row) => (
                 <div key={row.k} className="flex items-baseline gap-3">
                   <dt className="w-24 shrink-0 text-xs text-zinc-500">{row.k}</dt>
@@ -1811,7 +2618,7 @@ export default function ComboshopVercelOnboarding() {
           </Card>
 
           <div className="flex justify-end gap-2.5">
-            <button type="button" onClick={() => setStep(3)} className={BTN_SECONDARY}>
+            <button type="button" onClick={() => setStep(4)} className={BTN_SECONDARY}>
               <ArrowLeft size={15} />
               Back
             </button>

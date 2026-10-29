@@ -81,6 +81,7 @@ const NAV_LINKS = [
   { key: "features", href: "#features" },
   { key: "ai", href: "#ai" },
   { key: "payments", href: "#payments" },
+  { key: "pricing", href: "#pricing" },
 ];
 
 const STACK = [
@@ -95,6 +96,37 @@ const PAYMENTS = [
   { key: "rocket", accent: "text-violet-600", ring: "ring-violet-100" },
   { key: "cod", accent: "text-emerald-600", ring: "ring-emerald-100" },
 ];
+
+/*
+  Pricing tiers. Only the shape lives here - the plan name, the amount, the
+  period and every checklist row come from the catalogue, so Bangla gets
+  Bengali numerals and its own taka formatting rather than one number
+  formatted in English for both. `points` names its rows one by one because
+  `t` resolves strings, not arrays.
+
+  `featured` marks the recommended tier, and `points` reads in order - each
+  plan opens by inheriting the one above it.
+*/
+const PLANS = [
+  {
+    key: "starter",
+    href: "/onboard",
+    points: ["modules", "products", "payments", "deploy", "ai", "support"],
+  },
+  {
+    key: "business",
+    href: "/onboard",
+    featured: true,
+    points: ["everything", "products", "staff", "ai", "courier", "support"],
+  },
+  {
+    key: "enterprise",
+    href: "#contact",
+    points: ["everything", "warehouses", "integrations", "migration", "sla", "support"],
+  },
+];
+
+const PRICING_NOTES = ["trial", "vat", "hosting"];
 
 /*
   Counts taken from what the platform actually ships, not benchmark numbers -
@@ -629,6 +661,127 @@ function LandingContent() {
 
         </section>
 
+        {/* ── Pricing ── */}
+        <section id="pricing" className="border-y border-zinc-200 bg-zinc-50">
+          <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
+
+            <div className="mb-14 max-w-2xl">
+              <SectionLabel>{t("landing.pricing.label")}</SectionLabel>
+              <h2 className={`mb-4 text-3xl font-semibold sm:text-4xl ${h2Type}`}>
+                {t("landing.pricing.title")}
+              </h2>
+              <p className="text-lg leading-relaxed text-zinc-600">
+                {t("landing.pricing.body")}
+              </p>
+            </div>
+
+            {/*
+              The featured card takes the dark treatment the architecture
+              section and the closing CTA already use, so the middle tier reads
+              as the recommended one without introducing a second accent. It
+              only breaks out of the row from `lg` up, where the three cards
+              sit side by side - stacked on a phone there is no row to break.
+            */}
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+              {PLANS.map((plan) => {
+                const featured = Boolean(plan.featured);
+                const base = `landing.pricing.plans.${plan.key}`;
+
+                return (
+                  <div
+                    key={plan.key}
+                    className={`relative flex flex-col rounded-2xl border p-7 ${
+                      featured
+                        ? "border-zinc-950 bg-zinc-950 text-white shadow-xl shadow-zinc-900/20 lg:-my-3 lg:py-10"
+                        : "border-zinc-200 bg-white"
+                    }`}>
+
+                    {featured && (
+                      <span className="absolute right-7 top-7 rounded-full border border-emerald-400/25 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
+                        {t("landing.pricing.popular")}
+                      </span>
+                    )}
+
+                    <h3 className={`text-lg font-semibold ${headingType}`}>
+                      {t(`${base}.name`)}
+                    </h3>
+                    <p
+                      className={`mt-1.5 max-w-[15rem] text-sm leading-relaxed ${
+                        featured ? "text-zinc-400" : "text-zinc-600"
+                      }`}>
+                      {t(`${base}.tagline`)}
+                    </p>
+
+                    <div className="mt-7 flex flex-wrap items-baseline gap-x-1.5">
+                      <span className={`text-4xl font-semibold ${headingType}`}>
+                        {t(`${base}.price`)}
+                      </span>
+                      <span
+                        className={`text-sm ${featured ? "text-zinc-400" : "text-zinc-500"}`}>
+                        {t(`${base}.period`)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-zinc-500">
+                      {t(`${base}.note`)}
+                    </p>
+
+                    <a
+                      href={plan.href}
+                      className={`mt-7 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-colors ${
+                        featured
+                          ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                          : "border border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50"
+                      }`}>
+                      {t(`${base}.cta`)}
+                      <ArrowRight size={15} />
+                    </a>
+
+                    <div className={`my-7 h-px ${featured ? "bg-white/10" : "bg-zinc-200"}`} />
+
+                    <p
+                      className={`mb-4 text-xs font-semibold ${footerHeadingType} ${
+                        featured ? "text-zinc-500" : "text-zinc-400"
+                      }`}>
+                      {t("landing.pricing.includes")}
+                    </p>
+                    <ul className="space-y-3.5">
+                      {plan.points.map((point) => (
+                        <li
+                          key={point}
+                          className={`flex items-start gap-3 text-sm leading-relaxed ${
+                            featured ? "text-zinc-300" : "text-zinc-700"
+                          }`}>
+                          <span
+                            className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
+                              featured ? "bg-emerald-500/15" : "bg-emerald-100"
+                            }`}>
+                            <Check
+                              size={12}
+                              className={featured ? "text-emerald-300" : "text-emerald-700"}
+                            />
+                          </span>
+                          {t(`${base}.points.${point}`)}
+                        </li>
+                      ))}
+                    </ul>
+
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-10 flex flex-wrap items-center gap-x-7 gap-y-2.5 text-sm text-zinc-500">
+              {PRICING_NOTES.map((key) => (
+                <span key={key} className="inline-flex items-center gap-1.5">
+                  <Check size={14} className="text-emerald-600" />
+                  {t(`landing.pricing.notes.${key}`)}
+                </span>
+              ))}
+            </p>
+
+          </div>
+        </section>
+
         {/* ── CTA ── */}
         <section id="contact" className="mx-auto max-w-6xl px-6 pb-20 sm:pb-24">
           <div className="relative overflow-hidden rounded-3xl bg-zinc-950 px-8 py-16 text-center sm:px-12">
@@ -691,6 +844,9 @@ function LandingContent() {
                   </a>
                   <a href="#ai" className="text-zinc-600 hover:text-emerald-700">
                     {t("landing.footer.aiAssistant")}
+                  </a>
+                  <a href="#pricing" className="text-zinc-600 hover:text-emerald-700">
+                    {t("landing.footer.pricing")}
                   </a>
                 </div>
               </div>

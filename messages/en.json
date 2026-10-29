@@ -9,6 +9,7 @@
       "features": "Features",
       "ai": "AI",
       "payments": "Payments",
+      "pricing": "Pricing",
       "deploy": "Deploy on Vercel",
       "toggleMenu": "Toggle navigation",
       "language": "Language"
@@ -142,6 +143,66 @@
         }
       }
     },
+    "pricing": {
+      "label": "Pricing",
+      "title": "One platform fee, every module included",
+      "body": "No per-module licence, and no commission on your orders. Pick a plan by the size of your catalogue and your team — not by which features you are allowed to switch on.",
+      "popular": "Most popular",
+      "includes": "WHAT YOU GET",
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "tagline": "A first online shop finding its footing.",
+          "price": "৳499",
+          "period": "/ month / 1 Website",
+          "note": "Billed monthly · cancel anytime",
+          "cta": "Start with Starter",
+          "points": {
+            "modules": "All nine business modules",
+            "products": "Up to 300 products",
+            "payments": "bKash, Nagad, Rocket and Cash on Delivery",
+            "deploy": "One-click deploy to Vercel",
+            "support": "Email support in Bangla and English"
+          }
+        },
+        "business": {
+          "name": "Business",
+          "tagline": "A growing shop with a team behind the counter.",
+          "price": "৳1,900",
+          "period": "/ month / 5 Website",
+          "note": "Billed monthly · two months free on yearly",
+          "cta": "Start with Business",
+          "points": {
+            "everything": "Everything in Starter",
+            "products": "Unlimited products and categories",
+            "staff": "Five staff accounts with roles",
+            "courier": "Courier integrations with live tracking",
+            "support": "Priority support on phone and WhatsApp"
+          }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "tagline": "Multi-outlet retail and custom stacks.",
+          "price": "Custom",
+          "period": "",
+          "note": "Scoped to your catalogue and volume",
+          "cta": "Talk to sales",
+          "points": {
+            "everything": "Everything in Business",
+            "warehouses": "Multi-warehouse stock and per-outlet reporting",
+            "integrations": "Custom integrations and private API access",
+            "migration": "Guided migration from your current store",
+            "sla": "Uptime SLA and a named account manager",
+            "support": "Dedicated onboarding and staff training"
+          }
+        }
+      },
+      "notes": {
+        "trial": "14-day trial on every plan",
+        "vat": "Prices exclude VAT",
+        "hosting": "Vercel and WordPress hosting billed separately"
+      }
+    },
     "cta": {
       "title": "Your shop, live in days — not months",
       "body": "Point it at a domain and deploy. We will walk you through setup, migration and payment configuration.",
@@ -168,6 +229,7 @@
       "architecture": "Architecture",
       "features": "Features",
       "aiAssistant": "AI assistant",
+      "pricing": "Pricing",
       "contact": "Contact",
       "deploy": "Deploy on Vercel",
       "copyright": "© 2026 ComboStore. Made for Bangladesh.",
