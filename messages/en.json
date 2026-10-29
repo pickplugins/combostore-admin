@@ -232,6 +232,10 @@
       "pricing": "Pricing",
       "contact": "Contact",
       "deploy": "Deploy on Vercel",
+      "legalHeading": "LEGAL",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "refund": "Refund Policy",
       "copyright": "© 2026 ComboStore. Made for Bangladesh.",
       "location": "Dhaka · Bangladesh"
     }

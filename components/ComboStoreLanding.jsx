@@ -881,6 +881,29 @@ function LandingContent() {
                   </a>
                 </div>
               </div>
+              {/*
+                The documents live at their own routes rather than in this
+                bilingual catalogue: a machine-translated contract is a
+                liability, so only these labels are translated - see the note
+                in `components/legal/LegalPage.jsx`.
+              */}
+              <div>
+                <h4
+                  className={`mb-3.5 text-xs font-semibold text-zinc-400 ${footerHeadingType}`}>
+                  {t("landing.footer.legalHeading")}
+                </h4>
+                <div className="flex flex-col gap-2.5 text-sm">
+                  <a href="/terms" className="text-zinc-600 hover:text-emerald-700">
+                    {t("landing.footer.terms")}
+                  </a>
+                  <a href="/privacy" className="text-zinc-600 hover:text-emerald-700">
+                    {t("landing.footer.privacy")}
+                  </a>
+                  <a href="/refund" className="text-zinc-600 hover:text-emerald-700">
+                    {t("landing.footer.refund")}
+                  </a>
+                </div>
+              </div>
             </div>
 
           </div>

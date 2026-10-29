@@ -2418,6 +2418,32 @@ export default function ComboshopVercelOnboarding() {
                           {contact.email.trim() ? ` to ${contact.email.trim()}` : ""} —
                           the receipt and the card details stay with them.
                         </p>
+                        {/*
+                          The terms are linked from the step that takes the
+                          money, not only from the site footer: this is the
+                          page someone is on when they agree to them, and a
+                          payment processor expects to find them next to the
+                          button.
+                        */}
+                        <p className="mt-1.5 text-[11px] text-zinc-400">
+                          Subscribing accepts the{" "}
+                          <a
+                            href="/terms"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-600">
+                            Terms of Service
+                          </a>{" "}
+                          and{" "}
+                          <a
+                            href="/refund"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline decoration-zinc-300 underline-offset-2 hover:text-zinc-600">
+                            Refund Policy
+                          </a>
+                          .
+                        </p>
                       </div>
                       <button
                         type="button"
