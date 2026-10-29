@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import crypto from "crypto";
 import {
   ArrowLeft,
@@ -37,44 +37,56 @@ import enMessages from "../../messages/en.json";
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
 
 /*
-  Paddle Billing, from the browser only. This wizard has no API routes of its
+  Lemon Squeezy, from the browser only. This wizard has no API routes of its
   own - whatever it does not do against the Vercel API it posts to WordPress -
-  so checkout runs through Paddle.js and the finished transaction is handed to
-  WordPress afterwards. Nothing here is proof of payment on its own: the
-  authoritative record is Paddle's webhook arriving at the WordPress side,
-  which is also where the secret key belongs.
-
-  Sandbox is the default deliberately. An unset `NEXT_PUBLIC_PADDLE_ENV` must
-  not charge a real card - going live is an explicit `production` in `.env`.
+  so checkout is a hosted Lemon Squeezy link opened as an overlay by Lemon.js,
+  and the finished order is handed to WordPress afterwards. Nothing here is
+  proof of payment on its own: the record to trust is the `order_created`
+  webhook arriving at the WordPress side, which is also where the API key
+  belongs. There is no publishable key to set - a checkout link is the whole
+  front-end credential.
 */
-const PADDLE_JS_SRC = "https://cdn.paddle.com/paddle/v2/paddle.js";
-const PADDLE_ENV = process.env.NEXT_PUBLIC_PADDLE_ENV || "sandbox";
-const PADDLE_CLIENT_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
-const PADDLE_CONFIGURED = Boolean(PADDLE_CLIENT_TOKEN);
+const LEMON_JS_SRC = "https://app.lemonsqueezy.com/js/lemon.js";
 
 /*
-  ComboStore's two Paddle subscriptions, by plan key. Enterprise is absent on
+  Test or live is a property of the Lemon Squeezy store and of the link pasted
+  below, not something this page can impose - so this only decides whether the
+  step warns that real cards are in play. It defaults to `test` so an unset
+  value cannot quietly imply a live checkout; a finished order reports its own
+  `test_mode`, and that is what gets recorded.
+*/
+const LEMON_MODE = process.env.NEXT_PUBLIC_LEMONSQUEEZY_MODE || "test";
+
+/*
+  ComboStore's two Lemon Squeezy subscriptions, by plan key - the checkout link
+  each product's Share panel hands out, pasted whole. Enterprise is absent on
   purpose: its price is "Custom", so it is a sales conversation rather than a
   checkout, and a plan missing from this map is treated as unbilled.
 
-  `envKey` is carried so a plan whose price id was never set can name the
-  variable that is missing instead of opening an overlay with no items. The
-  `process.env` reads are written out one by one because Next.js inlines
-  `NEXT_PUBLIC_*` by static text match - `process.env[key]` would arrive
-  undefined in the browser.
+  Whole links rather than a store slug and a variant id: that is what the
+  dashboard gives you, it survives Lemon Squeezy changing its URL shapes, and a
+  link already distinguishes a test-mode product from a live one. `envKey` is
+  carried so a plan whose link was never set can name the variable that is
+  missing instead of opening an empty overlay. The `process.env` reads are
+  written out one by one because Next.js inlines `NEXT_PUBLIC_*` by static text
+  match - `process.env[key]` would arrive undefined in the browser.
 */
-const PADDLE_PLAN_PRICES = {
+const LEMON_PLAN_LINKS = {
   starter: {
-    envKey: "NEXT_PUBLIC_PADDLE_PRICE_STARTER",
-    priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_STARTER || "",
+    envKey: "NEXT_PUBLIC_LEMONSQUEEZY_LINK_STARTER",
+    link: process.env.NEXT_PUBLIC_LEMONSQUEEZY_LINK_STARTER || "",
   },
   business: {
-    envKey: "NEXT_PUBLIC_PADDLE_PRICE_BUSINESS",
-    priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_BUSINESS || "",
+    envKey: "NEXT_PUBLIC_LEMONSQUEEZY_LINK_BUSINESS",
+    link: process.env.NEXT_PUBLIC_LEMONSQUEEZY_LINK_BUSINESS || "",
   },
 };
 
-
+/* Nothing to load if no plan has a link: the step says so instead of pulling
+   in a script that would have nothing to open. */
+const LEMON_CONFIGURED = Object.values(LEMON_PLAN_LINKS).some(
+  (plan) => plan.link
+);
 
 /*
   One repo, one project. combostore-storefront is retired: the dashboard repo
@@ -142,7 +154,7 @@ const PLAN_ORDER = ["starter", "business", "enterprise"];
 
 const PLAN_OPTIONS = PLAN_ORDER.map((key) => {
   const plan = enMessages.landing.pricing.plans[key];
-  const paddle = PADDLE_PLAN_PRICES[key];
+  const lemon = LEMON_PLAN_LINKS[key];
 
   return {
     key,
@@ -151,22 +163,23 @@ const PLAN_OPTIONS = PLAN_ORDER.map((key) => {
     price: plan.price,
     period: plan.period,
     points: Object.values(plan.points).slice(0, 3),
-    /* `billed` is "this tier is sold through Paddle at all", which is not the
-       same as having a usable price id - an empty `priceId` on a billed plan
-       is a configuration gap, and the two read differently on screen. */
-    billed: Boolean(paddle),
-    priceId: paddle?.priceId || "",
-    priceEnvKey: paddle?.envKey || "",
+    /* `billed` is "this tier is sold through Lemon Squeezy at all", which is
+       not the same as having a usable link - an empty `checkoutLink` on a
+       billed plan is a configuration gap, and the two read differently on
+       screen. */
+    billed: Boolean(lemon),
+    checkoutLink: lemon?.link || "",
+    linkEnvKey: lemon?.envKey || "",
   };
 });
 
 /*
   Step 4 is optional in that no plan has to be picked - the project deploys
-  either way. Picking one that Paddle sells does gate the wizard: checkout has
-  to finish before the review opens, which is the reason the plan sits ahead of
-  the review rather than after it. Paying for a store and then abandoning the
-  deploy is a support ticket; reviewing a deployment whose plan is already paid
-  for is just the summary telling the truth.
+  either way. Picking one that Lemon Squeezy sells does gate the wizard:
+  checkout has to finish before the review opens, which is the reason the plan
+  sits ahead of the review rather than after it. Paying for a store and then
+  abandoning the deploy is a support ticket; reviewing a deployment whose plan
+  is already paid for is just the summary telling the truth.
 */
 const STEPS = [
   { n: 1, label: "Credentials" },
@@ -308,43 +321,42 @@ function downloadTextFile(filename, text) {
 
 
 /*
-  Paddle.js is fetched on demand rather than from the page `<head>`: three
-  steps are filled in before the plan exists, and a wizard that never reaches
-  it should not pull a payment SDK in at all.
+  Lemon.js is fetched on demand rather than from the page `<head>`: three steps
+  are filled in before the plan exists, and a wizard that never reaches it
+  should not pull a payment script in at all.
 
   The promise is cached at module scope so a remount - or two clicks racing the
-  first load - share one script tag and one `Initialize`, which Paddle honours
-  only once per page load anyway.
+  first load - share one script tag and one `Setup` call.
 */
-let paddlePromise = null;
+let lemonPromise = null;
 
 /*
-  `Initialize` takes its event callback once and keeps it, so what it gets is a
+  `Setup` takes its event handler once and keeps it, so what it gets is a
   trampoline into whatever wizard is currently mounted. Without the indirection
   the first mount's closure would go on receiving checkout events after a
   remount and set state on a component that no longer exists.
 */
-let paddleEventSink = null;
+let lemonEventSink = null;
 
-function initPaddle() {
+function initLemon() {
   return new Promise((resolve, reject) => {
-    if (window.Paddle) {
-      resolve(window.Paddle);
+    if (window.LemonSqueezy) {
+      resolve(window.LemonSqueezy);
       return;
     }
 
     /*
       A request held open by a proxy, or a `<script>` an extension neutered
       without failing it, fires neither event - and a checkout stuck on
-      "loading" reads as a broken wizard rather than a blocked CDN. So the wait
-      is cut off, the same way the WordPress probe cuts off a domain that never
-      answers.
+      "loading" reads as a broken wizard rather than a blocked script. So the
+      wait is cut off, the same way the WordPress probe cuts off a domain that
+      never answers.
     */
     const timer = setTimeout(
       () =>
         reject(
           new Error(
-            "Paddle.js did not load within 15 seconds - cdn.paddle.com is unreachable from this browser."
+            "Lemon.js did not load within 15 seconds - app.lemonsqueezy.com is unreachable from this browser."
           )
         ),
       15000
@@ -354,51 +366,66 @@ function initPaddle() {
       done(value);
     };
 
-    const existing = document.querySelector(`script[src="${PADDLE_JS_SRC}"]`);
+    const existing = document.querySelector(`script[src="${LEMON_JS_SRC}"]`);
     const script = existing || document.createElement("script");
 
     script.addEventListener("load", () =>
-      window.Paddle
-        ? settle(resolve, window.Paddle)
+      window.LemonSqueezy
+        ? settle(resolve, window.LemonSqueezy)
         : settle(
             reject,
-            new Error("Paddle.js loaded but window.Paddle never appeared.")
+            new Error("Lemon.js loaded but window.LemonSqueezy never appeared.")
           )
     );
     script.addEventListener("error", () =>
       settle(
         reject,
         new Error(
-          "Paddle.js could not be loaded - cdn.paddle.com was blocked by the network or a browser extension."
+          "Lemon.js could not be loaded - app.lemonsqueezy.com was blocked by the network or a browser extension."
         )
       )
     );
 
     if (!existing) {
-      script.src = PADDLE_JS_SRC;
-      script.async = true;
+      script.src = LEMON_JS_SRC;
+      script.defer = true;
       document.head.appendChild(script);
     }
-  }).then((paddle) => {
-    paddle.Environment.set(PADDLE_ENV);
-    paddle.Initialize({
-      token: PADDLE_CLIENT_TOKEN,
-      eventCallback: (event) => paddleEventSink?.(event),
-    });
-    return paddle;
+  }).then((lemon) => {
+    lemon.Setup({ eventHandler: (event) => lemonEventSink?.(event) });
+    /*
+      Lemon.js initialises itself on load, which in a React app can happen
+      before anything is rendered. `createLemonSqueezy()` re-arms it against
+      the current DOM and is documented as safe to call more than once.
+    */
+    window.createLemonSqueezy?.();
+    return lemon;
   });
 }
 
-/*
-  Hand a finished transaction to WordPress. Everything it needs rides in on
-  `custom_data`, which is why this lives out here: it reads no component state,
-  so an overlay that sat open for minutes - or a wizard that remounted behind
-  it - cannot post a stale project, domain or contact.
+function loadLemon() {
+  if (lemonPromise) return lemonPromise;
 
-  Fire and forget, like `create_project`: Paddle has taken the money either
-  way, the transaction id is on screen and in the `.env` download, and the
-  record WordPress trusts is the one its own Paddle webhook writes. A store
-  whose REST route is not deployed yet must not break a checkout.
+  /* A failed load is not cached: the usual causes are a blocked script or a
+     dropped connection, and both are worth the retry button. */
+  lemonPromise = initLemon().catch((error) => {
+    lemonPromise = null;
+    throw error;
+  });
+
+  return lemonPromise;
+}
+
+/*
+  Hand a finished order to WordPress. Everything it needs is passed in, which
+  is why this lives out here: it reads no component state, so an overlay that
+  sat open for minutes - or a wizard that remounted behind it - cannot post a
+  stale project, domain or contact.
+
+  Fire and forget, like `create_project`: Lemon Squeezy has taken the money
+  either way, the order number is on screen and in the `.env` download, and the
+  record WordPress trusts is the one its own `order_created` webhook writes. A
+  store whose REST route is not deployed yet must not break a checkout.
 */
 function record_subscription(payload) {
   fetch(serverUrl + "wp-json/combostore-admin/v2/record_subscription", {
@@ -409,28 +436,15 @@ function record_subscription(payload) {
     .then((response) => {
       if (!response.ok) {
         console.warn(
-          `record_subscription: WordPress answered HTTP ${response.status}. The transaction is only in this browser and in Paddle.`
+          `record_subscription: WordPress answered HTTP ${response.status}. The order is only in this browser and in Lemon Squeezy.`
         );
       }
     })
     .catch(() => {
       console.warn(
-        "record_subscription: WordPress could not be reached. The transaction is only in this browser and in Paddle."
+        "record_subscription: WordPress could not be reached. The order is only in this browser and in Lemon Squeezy."
       );
     });
-}
-
-function loadPaddle() {
-  if (paddlePromise) return paddlePromise;
-
-  /* A failed load is not cached: the usual causes are a blocked CDN or a
-     dropped connection, and both are worth the retry button. */
-  paddlePromise = initPaddle().catch((error) => {
-    paddlePromise = null;
-    throw error;
-  });
-
-  return paddlePromise;
 }
 
 /* ── Primitives ─────────────────────────────────────────────────── */
@@ -771,23 +785,38 @@ export default function ComboshopVercelOnboarding() {
   const [plan, setPlan] = useState("");
 
   /*
-    Paddle.js, loaded when the plan step opens. "unavailable" is a checkout
-    that cannot be reached - a blocked CDN, or a `.env` with no client token -
+    Lemon.js, loaded when the plan step opens. "unavailable" is a checkout that
+    cannot be reached - a blocked script, or a `.env` with no checkout links -
     and is kept distinct from "idle" because it is the one case where a paid
     plan does not gate the review: stranding a deploy behind an overlay that
     will never open is worse than recording a plan and billing it afterwards.
   */
-  const [paddleStatus, setPaddleStatus] = useState("idle");
-  const [paddleError, setPaddleError] = useState("");
-  /* Which plan's overlay is open, so only that row reads as busy. */
-  const [checkoutBusy, setCheckoutBusy] = useState("");
+  const [lemonStatus, setLemonStatus] = useState("idle");
+  const [lemonError, setLemonError] = useState("");
   /*
-    What Paddle reported for a completed checkout. The transaction id is the
-    only handle anything downstream has on the subscription, so it travels into
-    the review, the deployment record and the `.env` download rather than
-    living for only as long as this tab is open.
+    Which plan the open overlay is for. A ref, not state, and read back in the
+    event handler because Lemon Squeezy's `Checkout.Success` carries the Order
+    object alone - the `custom_data` sent with the link comes back on the
+    webhook, not to this page - so the plan has to be remembered here.
+  */
+  const pendingPlan = useRef("");
+  /*
+    What Lemon Squeezy reported for a completed order. The order number and
+    identifier are the handles anything downstream has on the subscription, so
+    they travel into the review, the deployment record and the `.env` download
+    rather than living for only as long as this tab is open.
   */
   const [subscription, setSubscription] = useState(null);
+
+  /*
+    What the overlay was opened against, captured by `openCheckout` for the
+    event handler to post. Refs rather than state because nothing renders them
+    and a change must not re-render: they exist only because the handler is
+    installed once and cannot see the current values through a closure.
+  */
+  const dbNameRef = useRef("");
+  const mainDomainRef = useRef("");
+  const contactRef = useRef(EMPTY_CONTACT);
 
   /*
     Whether the WordPress side has answered. Nothing after step 2 is worth
@@ -947,14 +976,19 @@ export default function ComboshopVercelOnboarding() {
       */
       ...(planChoice ? ["", `Plan:      ${planSummary}`] : []),
       /*
-        The Paddle transaction id, for much the same reason the API token is
-        here: it is minted outside this wizard, shown once, and it is what
-        support needs to tie a store to a subscription.
+        The order number, for much the same reason the API token is here: it is
+        minted outside this wizard, shown once, and it is what support needs to
+        tie a store to a subscription.
       */
-      ...(subscription?.transactionId
+      ...(subscription
         ? [
-            `Paddle:    ${subscription.environment || PADDLE_ENV}`,
-            `Txn:       ${subscription.transactionId}`,
+            `Billing:   Lemon Squeezy${subscription.testMode ? " (test mode)" : ""}`,
+            ...(subscription.orderNumber
+              ? [`Order:     #${subscription.orderNumber}`]
+              : []),
+            ...(subscription.identifier
+              ? [`Order ref: ${subscription.identifier}`]
+              : []),
             ...(subscription.customerId
               ? [`Customer:  ${subscription.customerId}`]
               : []),
@@ -981,14 +1015,14 @@ export default function ComboshopVercelOnboarding() {
     : "";
 
   /*
-    A selected plan that Paddle can actually sell has to be paid for before the
-    review. The three ways past the gate are all deliberate: no plan at all,
-    Enterprise - quoted by hand, so there is no price id to charge - and a
-    checkout that could not be reached, which is a configuration problem on
-    this side rather than something to hold a deploy hostage over.
+    A selected plan Lemon Squeezy can actually sell has to be paid for before
+    the review. The three ways past the gate are all deliberate: no plan at
+    all, Enterprise - quoted by hand, so there is no link to charge against -
+    and a checkout that could not be reached, which is a configuration problem
+    on this side rather than something to hold a deploy hostage over.
   */
   const planNeedsPayment =
-    Boolean(planChoice?.priceId) && paddleStatus !== "unavailable";
+    Boolean(planChoice?.checkoutLink) && lemonStatus !== "unavailable";
   const planPaid = Boolean(subscription && subscription.plan === plan);
   const canLeavePlanStep = !planNeedsPayment || planPaid;
 
@@ -1215,152 +1249,147 @@ export default function ComboshopVercelOnboarding() {
 
 
   /*
-    Every checkout event Paddle raises arrives here. The plan comes off
-    `custom_data` rather than out of `plan` state for the same reason
-    `record_subscription` sits at module scope: this callback is installed once,
-    and reading state from inside it would report whatever was selected when
-    Paddle was initialised - or, after a remount, nothing at all.
+    Every Lemon.js event arrives here. Only `Checkout.Success` matters - the
+    others are the payment-method overlay, which this wizard never opens.
+
+    There is no "overlay closed" event to pair with it, which is why opening a
+    checkout sets no busy flag: a spinner started on open would have nothing to
+    clear it when someone dismisses the overlay without paying.
   */
-  const onPaddleEvent = useCallback((event) => {
-    const { name, data } = event || {};
+  const onLemonEvent = useCallback((event) => {
+    if (event?.event !== "Checkout.Success") return;
 
-    switch (name) {
-      case "checkout.completed": {
-        setSubscription({
-          plan: data?.custom_data?.plan || "",
-          transactionId: data?.transaction_id || "",
-          customerId: data?.customer?.id || "",
-          priceId: data?.items?.[0]?.price_id || "",
-          total:
-            data?.totals?.total != null
-              ? `${data.totals.total} ${data?.currency_code || ""}`.trim()
-              : "",
-          environment: PADDLE_ENV,
-          at: new Date().toISOString(),
-        });
-        setCheckoutBusy("");
-        setPaddleError("");
-        /* The overlay is left open on purpose: Paddle shows its own receipt,
-           and pulling it away the instant a card clears reads as a crash. */
-        record_subscription({
-          plan: data?.custom_data?.plan || "",
-          project: data?.custom_data?.project || "",
-          domain: data?.custom_data?.domain || "",
-          contact_name: data?.custom_data?.contact_name || "",
-          contact_email: data?.custom_data?.contact_email || "",
-          transaction_id: data?.transaction_id || "",
-          customer_id: data?.customer?.id || "",
-          price_id: data?.items?.[0]?.price_id || "",
-          environment: PADDLE_ENV,
-        });
-        break;
-      }
+    const order = event.data || {};
+    const attrs = order.attributes || {};
+    const record = {
+      plan: pendingPlan.current,
+      orderId: order.id || "",
+      identifier: attrs.identifier || "",
+      orderNumber: attrs.order_number ?? "",
+      customerId: attrs.customer_id ?? "",
+      variantId: attrs.first_order_item?.variant_id ?? "",
+      email: attrs.user_email || "",
+      total: attrs.total_formatted || "",
+      receipt: attrs.urls?.receipt || "",
+      /* The order's own word on test or live, rather than `LEMON_MODE` - the
+         env var is an expectation, this is what actually happened. */
+      testMode: Boolean(attrs.test_mode),
+      at: new Date().toISOString(),
+    };
 
-      /* Closing the overlay is not a failure - nothing was charged and the
-         plan is still selected, so only the busy flag is cleared. */
-      case "checkout.closed":
-        setCheckoutBusy("");
-        break;
+    setSubscription(record);
+    setLemonError("");
 
-      case "checkout.error":
-      case "checkout.payment.failed":
-        setCheckoutBusy("");
-        setPaddleError(
-          data?.error?.detail ||
-            "Paddle could not take that payment. Nothing was charged - try again or use another card."
-        );
-        break;
-
-      default:
-        break;
-    }
+    /* The overlay is left alone on purpose: Lemon Squeezy shows its own
+       receipt, and tearing it down the instant a card clears reads as a
+       crash. */
+    record_subscription({
+      plan: record.plan,
+      project: dbNameRef.current,
+      domain: mainDomainRef.current,
+      contact_name: contactRef.current.name.trim(),
+      contact_email: contactRef.current.email.trim(),
+      order_id: record.orderId,
+      order_number: record.orderNumber,
+      order_identifier: record.identifier,
+      customer_id: record.customerId,
+      variant_id: record.variantId,
+      test_mode: record.testMode,
+    });
   }, []);
 
   /* Point the module-level trampoline at this mount, and let go of it on the
      way out so a stale handler cannot outlive the component. */
   useEffect(() => {
-    paddleEventSink = onPaddleEvent;
+    lemonEventSink = onLemonEvent;
     return () => {
-      if (paddleEventSink === onPaddleEvent) paddleEventSink = null;
+      if (lemonEventSink === onLemonEvent) lemonEventSink = null;
     };
-  }, [onPaddleEvent]);
+  }, [onLemonEvent]);
 
   /*
-    Fetch and initialise Paddle.js, as a callback rather than inline in the
-    effect below. It used to be inline, guarded by a `live` flag cleared on
-    cleanup - and the flag killed its own result every time: the effect watches
-    `paddleStatus`, the effect sets `paddleStatus` to "loading", and React runs
-    the previous pass's cleanup before the next one. So the load resolved into
-    a dead handler and the step sat on "Loading checkout" with the Subscribe
-    button disabled for good.
-
-    There is no cancel flag here on purpose. A resolved load is a fact about
-    the page, not about this render: `window.Paddle` either exists or it does
-    not, and recording that late is harmless.
+    Fetch and initialise Lemon.js. A callback rather than inline in the effect
+    below, and with no cancel flag: the effect watches `lemonStatus` and also
+    sets it, so a flag cleared on cleanup would kill the load's own result
+    every time - which is exactly how this once sat on "Loading checkout" for
+    good. A resolved load is a fact about the page, not about one render.
   */
   const loadCheckout = useCallback(() => {
-    if (!PADDLE_CONFIGURED) {
-      setPaddleStatus("unavailable");
-      setPaddleError(
-        "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not set, so checkout cannot open. A plan can still be recorded with this deployment and billed afterwards."
+    if (!LEMON_CONFIGURED) {
+      setLemonStatus("unavailable");
+      setLemonError(
+        "No Lemon Squeezy checkout links are set in .env, so checkout cannot open. A plan can still be recorded with this deployment and billed afterwards."
       );
       return;
     }
 
-    setPaddleStatus("loading");
-    setPaddleError("");
+    setLemonStatus("loading");
+    setLemonError("");
 
-    loadPaddle()
-      .then(() => setPaddleStatus("ready"))
+    loadLemon()
+      .then(() => setLemonStatus("ready"))
       .catch((error) => {
-        setPaddleStatus("unavailable");
-        setPaddleError(error?.message || "Paddle.js could not be initialised.");
+        setLemonStatus("unavailable");
+        setLemonError(error?.message || "Lemon.js could not be initialised.");
       });
   }, []);
 
-  /* Load Paddle when the plan step opens, and leave a failure alone until the
-     operator retries - the same shape as the WordPress probe above. */
+  /* Load Lemon.js when the plan step opens, and leave a failure alone until
+     the operator retries - the same shape as the WordPress probe above. */
   useEffect(() => {
-    if (step === 4 && paddleStatus === "idle") loadCheckout();
-  }, [step, paddleStatus, loadCheckout]);
+    if (step === 4 && lemonStatus === "idle") loadCheckout();
+  }, [step, lemonStatus, loadCheckout]);
 
   /*
-    Open the overlay for one plan. The email from step 3 is prefilled so the
-    subscription lands on the same person the deployment is recorded to, and
-    everything WordPress needs to match a webhook to a store goes into
-    `custom_data` - by the time Paddle calls, this page may be long gone.
+    Open one plan's checkout as an overlay. `embed=1` is what makes Lemon
+    Squeezy render the link inside the page instead of navigating away; the
+    email and name from step 3 are prefilled so the order lands on the same
+    person the deployment is recorded to, and `checkout[custom][...]` is what
+    lets the `order_created` webhook match an order to a store long after this
+    page has closed.
   */
   const openCheckout = (option) => {
-    if (!option?.priceId || paddleStatus !== "ready" || !window.Paddle) return;
+    if (!option?.checkoutLink || lemonStatus !== "ready" || !window.LemonSqueezy)
+      return;
 
     const email = contact.email.trim();
+    const name = contact.name.trim();
 
-    setPaddleError("");
-    setCheckoutBusy(option.key);
+    let url;
+    try {
+      url = new URL(option.checkoutLink);
+    } catch {
+      setLemonStatus("unavailable");
+      setLemonError(
+        `${option.linkEnvKey} is not a valid URL - paste the checkout link from the product's Share panel in Lemon Squeezy.`
+      );
+      return;
+    }
+
+    url.searchParams.set("embed", "1");
+    if (email) url.searchParams.set("checkout[email]", email);
+    if (name) url.searchParams.set("checkout[name]", name);
+    url.searchParams.set("checkout[custom][plan]", option.key);
+    if (dbName) url.searchParams.set("checkout[custom][project]", dbName);
+    if (mainDomain) url.searchParams.set("checkout[custom][domain]", mainDomain);
+
+    setLemonError("");
+    /*
+      Read back by `onLemonEvent`, which is installed once and so cannot see
+      any of this through a closure. The success payload is the Order object
+      and carries nothing of what was sent with the link, so what the overlay
+      was opened against is remembered here instead.
+    */
+    pendingPlan.current = option.key;
+    dbNameRef.current = dbName;
+    mainDomainRef.current = mainDomain;
+    contactRef.current = contact;
 
     try {
-      window.Paddle.Checkout.open({
-        settings: {
-          displayMode: "overlay",
-          theme: "light",
-          /* With an email carried over from step 3 there is no account to log
-             out of; without one the overlay has to be free to ask. */
-          allowLogout: !email,
-        },
-        items: [{ priceId: option.priceId, quantity: 1 }],
-        ...(email ? { customer: { email } } : null),
-        customData: {
-          plan: option.key,
-          project: dbName,
-          domain: mainDomain,
-          contact_name: contact.name.trim(),
-          contact_email: email,
-        },
-      });
+      window.LemonSqueezy.Url.Open(url.toString());
     } catch (error) {
-      setCheckoutBusy("");
-      setPaddleStatus("unavailable");
-      setPaddleError(error?.message || "Paddle refused to open the checkout.");
+      setLemonStatus("unavailable");
+      setLemonError(error?.message || "Lemon.js refused to open the checkout.");
     }
   };
 
@@ -1408,12 +1437,12 @@ export default function ComboshopVercelOnboarding() {
     setMainDomain("");
     setContact(EMPTY_CONTACT);
     setPlan("");
-    /* The loaded script survives a reset - it is page-level - but the
-       transaction must not: the next store is a different subscription. */
+    /* The loaded script survives a reset - it is page-level - but the order
+       must not: the next store is a different subscription. */
     setSubscription(null);
-    setPaddleStatus("idle");
-    setPaddleError("");
-    setCheckoutBusy("");
+    setLemonStatus("idle");
+    setLemonError("");
+    pendingPlan.current = "";
     setSavedEnvText("");
     setConfirmingDeploy(false);
     setLogs([]);
@@ -1457,12 +1486,12 @@ export default function ComboshopVercelOnboarding() {
                 <Check size={12} />
                 {planSummary}
               </p>
-              {subscription?.transactionId && (
+              {subscription && (
                 <p
                   style={FONT_MONO}
                   className="mt-2 text-[11px] text-zinc-500">
-                  Paddle {subscription.environment || PADDLE_ENV} · txn{" "}
-                  {subscription.transactionId}
+                  Lemon Squeezy{subscription.testMode ? " (test)" : ""} · order #
+                  {subscription.orderNumber || subscription.orderId}
                 </p>
               )}
             </>
@@ -2133,8 +2162,8 @@ export default function ComboshopVercelOnboarding() {
           </h1>
           <p className="mb-7 text-sm text-zinc-500">
             Optional — skip it and the store still deploys. Picking Starter or
-            Business opens Paddle checkout, and that has to finish before the
-            review.
+            Business opens Lemon Squeezy checkout, and that has to finish before
+            the review.
           </p>
 
           <Stepper step={4} />
@@ -2166,10 +2195,10 @@ export default function ComboshopVercelOnboarding() {
               group, and clicking the selected row clears it - that is the only
               way back to "no plan" once something is picked.
 
-              Once Paddle has taken a payment the group locks. These rows are a
-              signup choice, not a billing screen: switching plans after a
-              charge would leave the wizard recording a plan nobody paid for,
-              and refunds and upgrades belong in the dashboard.
+              Once Lemon Squeezy has taken a payment the group locks. These
+              rows are a signup choice, not a billing screen: switching plans
+              after a charge would leave the wizard recording a plan nobody
+              paid for, and refunds and upgrades belong in the dashboard.
             */}
             <div role="radiogroup" aria-label="ComboStore plan" className="space-y-2.5">
               {PLAN_OPTIONS.map((option) => {
@@ -2244,10 +2273,10 @@ export default function ComboshopVercelOnboarding() {
             </div>
 
             {/*
-              Checkout only appears under a plan Paddle can actually sell.
-              Enterprise says why it cannot be bought here, and a billed plan
-              whose price id never made it into `.env` names the variable that
-              is missing rather than opening an overlay with nothing in it.
+              Checkout only appears under a plan Lemon Squeezy can actually
+              sell. Enterprise says why it cannot be bought here, and a billed
+              plan whose link never made it into `.env` names the variable that
+              is missing rather than opening an empty overlay.
             */}
             {planChoice && (
               <div className="mt-4">
@@ -2258,14 +2287,14 @@ export default function ComboshopVercelOnboarding() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-emerald-900">
                           Subscription active
-                          {subscription.environment !== "production" && (
+                          {subscription.testMode && (
                             <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800">
-                              {subscription.environment.toUpperCase()}
+                              TEST ORDER
                             </span>
                           )}
                         </p>
                         <p className="mt-0.5 text-xs leading-relaxed text-emerald-800">
-                          Paddle took the payment for {planSummary}
+                          Lemon Squeezy took the payment for {planSummary}
                           {subscription.total ? ` (${subscription.total})` : ""}. The
                           plan is locked for the rest of this wizard — change it
                           later from the dashboard.
@@ -2274,14 +2303,27 @@ export default function ComboshopVercelOnboarding() {
                           style={FONT_MONO}
                           className="mt-2 space-y-1 text-[11px] text-emerald-900/80">
                           <div className="truncate">
-                            txn {subscription.transactionId || "—"}
+                            order #{subscription.orderNumber || "—"}
                           </div>
-                          {subscription.customerId && (
+                          {subscription.identifier && (
                             <div className="truncate">
-                              customer {subscription.customerId}
+                              ref {subscription.identifier}
                             </div>
                           )}
+                          {subscription.email && (
+                            <div className="truncate">{subscription.email}</div>
+                          )}
                         </div>
+                        {subscription.receipt && (
+                          <a
+                            href={subscription.receipt}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-900">
+                            View receipt
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2296,7 +2338,7 @@ export default function ComboshopVercelOnboarding() {
                       {contact.email.trim() || "the store owner"}.
                     </p>
                   </div>
-                ) : !planChoice.priceId ? (
+                ) : !planChoice.checkoutLink ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
                     <div className="flex items-start gap-2.5">
                       <ShieldAlert size={15} className="mt-0.5 shrink-0 text-amber-600" />
@@ -2308,7 +2350,7 @@ export default function ComboshopVercelOnboarding() {
                           <code
                             style={FONT_MONO}
                             className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px]">
-                            {planChoice.priceEnvKey}
+                            {planChoice.linkEnvKey}
                           </code>{" "}
                           is missing, so this plan cannot be paid for here. It is
                           still recorded with the deployment and can be billed
@@ -2317,7 +2359,7 @@ export default function ComboshopVercelOnboarding() {
                       </div>
                     </div>
                   </div>
-                ) : paddleStatus === "unavailable" ? (
+                ) : lemonStatus === "unavailable" ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
                     <div className="flex items-start gap-2.5">
                       <ShieldAlert size={15} className="mt-0.5 shrink-0 text-amber-600" />
@@ -2326,14 +2368,14 @@ export default function ComboshopVercelOnboarding() {
                           Checkout unavailable
                         </p>
                         <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
-                          {paddleError}
+                          {lemonError}
                         </p>
-                        {PADDLE_CONFIGURED && (
+                        {LEMON_CONFIGURED && (
                           <button
                             type="button"
                             onClick={() => {
-                              setPaddleStatus("idle");
-                              setPaddleError("");
+                              setLemonStatus("idle");
+                              setLemonError("");
                             }}
                             className={`${BTN_ICON} mt-2 !text-amber-800 hover:!bg-amber-100 focus-visible:outline-amber-500`}>
                             <RefreshCw size={12} />
@@ -2356,7 +2398,7 @@ export default function ComboshopVercelOnboarding() {
                           )}
                         </p>
                         <p className="mt-0.5 text-xs text-zinc-500">
-                          Charged by Paddle
+                          Charged by Lemon Squeezy
                           {contact.email.trim() ? ` to ${contact.email.trim()}` : ""} —
                           the receipt and the card details stay with them.
                         </p>
@@ -2364,45 +2406,47 @@ export default function ComboshopVercelOnboarding() {
                       <button
                         type="button"
                         onClick={() => openCheckout(planChoice)}
-                        disabled={paddleStatus !== "ready" || Boolean(checkoutBusy)}
+                        disabled={lemonStatus !== "ready"}
                         className={BTN_PRIMARY}>
-                        {paddleStatus === "loading" ? (
-                          <>
-                            <Loader2 size={15} className="animate-spin" />
-                            Loading checkout…
-                          </>
-                        ) : checkoutBusy ? (
-                          <>
-                            <Loader2 size={15} className="animate-spin" />
-                            Waiting for Paddle…
-                          </>
-                        ) : (
+                        {lemonStatus === "ready" ? (
                           <>
                             <CreditCard size={15} />
                             Subscribe
+                          </>
+                        ) : (
+                          <>
+                            <Loader2 size={15} className="animate-spin" />
+                            Loading checkout…
                           </>
                         )}
                       </button>
                     </div>
 
-                    {paddleError && (
+                    {lemonError && (
                       <p className="mt-2.5 flex items-start gap-1.5 text-xs text-red-600">
                         <CircleAlert size={13} className="mt-0.5 shrink-0" />
-                        {paddleError}
+                        {lemonError}
                       </p>
                     )}
 
-                    {PADDLE_ENV !== "production" && (
+                    {LEMON_MODE !== "live" && (
                       <p className="mt-2.5 text-[11px] leading-relaxed text-amber-700">
-                        Paddle is in{" "}
-                        <span className="font-semibold">{PADDLE_ENV}</span> mode —
-                        use a test card, no real money moves. Set{" "}
+                        Expected to be a{" "}
+                        <span className="font-semibold">test mode</span> checkout —
+                        test cards only. Test or live follows the Lemon Squeezy
+                        store and the link in{" "}
                         <code
                           style={FONT_MONO}
                           className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px]">
-                          NEXT_PUBLIC_PADDLE_ENV=production
+                          {planChoice.linkEnvKey}
+                        </code>
+                        , not this page; a finished order reports which it was. Set{" "}
+                        <code
+                          style={FONT_MONO}
+                          className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px]">
+                          NEXT_PUBLIC_LEMONSQUEEZY_MODE=live
                         </code>{" "}
-                        to charge for real.
+                        to drop this notice.
                       </p>
                     )}
                   </div>
@@ -2421,8 +2465,8 @@ export default function ComboshopVercelOnboarding() {
                     {envFileName}
                   </code>{" "}
                   download
-                  {subscription?.transactionId
-                    ? ", with the Paddle transaction id beside it."
+                  {subscription
+                    ? ", with the Lemon Squeezy order number beside it."
                     : "."}
                   {planNeedsPayment && !planPaid
                     ? " Checkout has to finish before the review opens."
@@ -2437,8 +2481,8 @@ export default function ComboshopVercelOnboarding() {
           {!canLeavePlanStep && (
             <p className="mb-3 flex items-center justify-end gap-1.5 text-xs text-zinc-500">
               <CircleAlert size={13} className="shrink-0 text-amber-500" />
-              Finish the Paddle checkout for {planChoice?.name}, or clear the plan,
-              to continue.
+              Finish the Lemon Squeezy checkout for {planChoice?.name}, or clear
+              the plan, to continue.
             </p>
           )}
 
@@ -2485,11 +2529,11 @@ export default function ComboshopVercelOnboarding() {
                 { k: "Framework", v: framework || "auto-detect" },
                 { k: "Variables", v: `${buildEnvPayload(dbEnvs).length} injected` },
                 { k: "Plan", v: planSummary || "none chosen" },
-                ...(subscription?.transactionId
+                ...(subscription
                   ? [
                       {
                         k: "Billing",
-                        v: `Paddle ${subscription.environment || PADDLE_ENV} · ${subscription.transactionId}`,
+                        v: `Lemon Squeezy${subscription.testMode ? " (test)" : ""} · order #${subscription.orderNumber || subscription.orderId}`,
                       },
                     ]
                   : []),
