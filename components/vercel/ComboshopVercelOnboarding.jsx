@@ -340,8 +340,26 @@ let lemonEventSink = null;
 
 function initLemon() {
   return new Promise((resolve, reject) => {
-    if (window.LemonSqueezy) {
-      resolve(window.LemonSqueezy);
+    /*
+      Running lemon.js does not create `window.LemonSqueezy`. The script only
+      defines `window.createLemonSqueezy()` and registers
+      `window.addEventListener("load", createLemonSqueezy)`, so the global
+      appears when the window load event fires - which a script injected on
+      demand, at the plan step, has missed by minutes. The factory has to be
+      called by hand; that is what the docs mean when they tell React apps to
+      call `createLemonSqueezy()` after their component mounts, and calling it
+      again later is a refresh rather than a second instance.
+    */
+    const createLemon = () => {
+      window.createLemonSqueezy?.();
+      return window.LemonSqueezy || null;
+    };
+
+    /* Already loaded, by an earlier visit to this step or by the page itself:
+       the factory may still be waiting to be called. */
+    const loaded = window.LemonSqueezy || createLemon();
+    if (loaded) {
+      resolve(loaded);
       return;
     }
 
@@ -369,14 +387,17 @@ function initLemon() {
     const existing = document.querySelector(`script[src="${LEMON_JS_SRC}"]`);
     const script = existing || document.createElement("script");
 
-    script.addEventListener("load", () =>
-      window.LemonSqueezy
-        ? settle(resolve, window.LemonSqueezy)
+    script.addEventListener("load", () => {
+      const lemon = createLemon();
+      lemon
+        ? settle(resolve, lemon)
         : settle(
             reject,
-            new Error("Lemon.js loaded but window.LemonSqueezy never appeared.")
-          )
-    );
+            new Error(
+              "Lemon.js loaded but createLemonSqueezy() did not produce window.LemonSqueezy."
+            )
+          );
+    });
     script.addEventListener("error", () =>
       settle(
         reject,
@@ -392,13 +413,9 @@ function initLemon() {
       document.head.appendChild(script);
     }
   }).then((lemon) => {
+    /* Setup only stores the handler, so it has to come after the instance
+       exists - and it throws on anything but an object. */
     lemon.Setup({ eventHandler: (event) => lemonEventSink?.(event) });
-    /*
-      Lemon.js initialises itself on load, which in a React app can happen
-      before anything is rendered. `createLemonSqueezy()` re-arms it against
-      the current DOM and is documented as safe to call more than once.
-    */
-    window.createLemonSqueezy?.();
     return lemon;
   });
 }
@@ -1341,12 +1358,12 @@ export default function ComboshopVercelOnboarding() {
   }, [step, lemonStatus, loadCheckout]);
 
   /*
-    Open one plan's checkout as an overlay. `embed=1` is what makes Lemon
-    Squeezy render the link inside the page instead of navigating away; the
-    email and name from step 3 are prefilled so the order lands on the same
-    person the deployment is recorded to, and `checkout[custom][...]` is what
-    lets the `order_created` webhook match an order to a store long after this
-    page has closed.
+    Open one plan's checkout as an overlay. `Url.Open` adds the `embed=1` that
+    renders the link inside the page rather than navigating away, so only the
+    wizard's own parameters are set here: the email and name from step 3, so
+    the order lands on the same person the deployment is recorded to, and
+    `checkout[custom][...]`, which is what lets the `order_created` webhook
+    match an order to a store long after this page has closed.
   */
   const openCheckout = (option) => {
     if (!option?.checkoutLink || lemonStatus !== "ready" || !window.LemonSqueezy)
@@ -1366,7 +1383,6 @@ export default function ComboshopVercelOnboarding() {
       return;
     }
 
-    url.searchParams.set("embed", "1");
     if (email) url.searchParams.set("checkout[email]", email);
     if (name) url.searchParams.set("checkout[name]", name);
     url.searchParams.set("checkout[custom][plan]", option.key);
