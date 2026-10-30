@@ -7,32 +7,50 @@ import {
   Banknote,
   Bike,
   Boxes,
+  Antenna,
   ChartColumn,
+  ChartPie,
   Check,
   ChevronDown,
   ClipboardList,
+  Code,
   CreditCard,
+  Eye,
   FileText,
   Globe,
   Headset,
   Image as ImageIcon,
+  Landmark,
   Layers,
   LayoutTemplate,
   MapPin,
+  Map as MapIcon,
   Megaphone,
   Menu,
+  Minus,
   MousePointerClick,
   Package,
   PanelsTopLeft,
+  Percent,
   Plug,
+  Plus,
+  Puzzle,
   Receipt,
+  RefreshCw,
   Search,
   ShieldCheck,
+  ShoppingCart,
   Smartphone,
   Sparkles,
+  Star,
   Store,
+  Tag,
+  TriangleAlert,
   Truck,
+  Undo2,
+  Upload,
   Users,
+  Video,
   Wallet,
   WandSparkles,
   X,
@@ -293,6 +311,16 @@ const FEATURE_TOTAL_FALLBACK = 65;
 /* A mock listing row: "cell|cell|cell|cell". */
 function cells(row) {
   return row.split("|").map((cell) => cell.trim());
+}
+
+/*
+  An element id built from a translated feature name. Bengali is stripped by
+  the ASCII filter, so the fallback keeps ids unique by position rather than
+  emitting the same empty string twice.
+*/
+function slug(text) {
+  const ascii = String(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return ascii || `k${String(text).length}-${String(text).codePointAt(0) || 0}`;
 }
 
 /* ──────────────────────────── hooks ──────────────────────────── */
@@ -641,11 +669,15 @@ function DemoProducts() {
   );
 }
 
+/*
+  A week of bars - decorative, so the shape is fixed rather than computed,
+  and shared with the Insights band's own preview so the two panels do not
+  report two different weeks.
+*/
+const WEEK_BARS = [38, 52, 44, 68, 59, 83, 72];
+
 function DemoInsights() {
   const { t, tList } = useI18n();
-
-  /* A week of bars - decorative, so the shape is fixed here and hidden. */
-  const bars = [38, 52, 44, 68, 59, 83, 72];
 
   return (
     <div>
@@ -677,12 +709,12 @@ function DemoInsights() {
       <div
         aria-hidden="true"
         className="flex h-14 items-end gap-1.5 rounded-xl border border-zinc-200 px-3 py-2.5">
-        {bars.map((height, index) => (
+        {WEEK_BARS.map((height, index) => (
           <span
             key={index}
             style={{ height: `${height}%` }}
             className={`flex-1 rounded-sm ${
-              index === bars.length - 1 ? "bg-emerald-500" : "bg-emerald-200"
+              index === WEEK_BARS.length - 1 ? "bg-emerald-500" : "bg-emerald-200"
             }`}
           />
         ))}
@@ -895,6 +927,2320 @@ function AdminDemo() {
   );
 }
 
+/* ─────────────────── band showcases ─────────────────── */
+
+/*
+  A module band's visual side: a window you click through rather than a list
+  you read. All twelve bands have one.
+
+  It started as four - catalogue, orders, stock, insights - on the argument
+  that those carry what a shop owner cares most about. The rest were asked
+  for afterwards, and the honest note is that twelve identical windows cost
+  the page some of the rhythm the bands were built for: the shading and the
+  alternating sides are now the only thing separating one from the next, and
+  a feature grid between them was a change of pace. `FeatureGrid` is still
+  here and still the fallback, so dropping `BAND_VISUALS` entries is how a
+  band goes back to a list. Each feature opens an illustration of the screen it belongs
+  to - greeked, the way a product shot is, with the few real values (a
+  price, a stock badge, an order number, the assistant's own sample answer)
+  borrowed from mock listings that are already translated. Nothing here adds
+  a string a translator has to find.
+
+  The illustrations are decorative and marked so: the information is the
+  list of feature names in the tabs, which a screen reader reads in full
+  whether or not it can make sense of a bar chart. The panel repeats the
+  selected name as its own heading, so the panel is never announced empty
+  and the preview is captioned on a phone, where the tabs scroll away.
+
+  Each previews array is indexed by position, mirroring that module's
+  `landing.modules.groups.<key>.items`. That is a coupling between this file
+  and the catalogue, so a reorder has to happen in both - the panel falls
+  back to a plain card if the lists ever drift apart, rather than drawing
+  the wrong screen for a feature.
+*/
+
+function Line({ w = "w-24", h = "h-2", tone = "bg-zinc-200" }) {
+  return <span className={`block rounded-full ${h} ${w} ${tone}`} />;
+}
+
+function Field({ label, value }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 px-3 py-2">
+      <Line w={label} h="h-1.5" />
+      <p className="mt-2 truncate text-sm font-semibold text-zinc-900">{value}</p>
+    </div>
+  );
+}
+
+/* The first mock product, reused so the preview and the hero agree. */
+function useSampleProduct() {
+  const { tList } = useI18n();
+  const rows = tList("landing.demo.products.rows");
+  const [name, sku, price, stock] = cells(rows[0] || "|||");
+  return { name, sku, price, stock };
+}
+
+function PreviewProducts() {
+  const product = useSampleProduct();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="size-11 shrink-0 rounded-lg bg-emerald-100" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-zinc-900">
+            {product.name}
+          </span>
+          <span className="mt-1.5 block">
+            <Line w="w-20" h="h-1.5" />
+          </span>
+        </span>
+        <Chip tone="emerald">{product.stock}</Chip>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="w-8" value={product.price} />
+        <Field label="w-10" value={product.sku} />
+      </div>
+    </div>
+  );
+}
+
+function PreviewCategories() {
+  const rows = [
+    { indent: "", w: "w-28", on: true },
+    { indent: "pl-6", w: "w-20", on: true },
+    { indent: "pl-6", w: "w-24", on: false },
+    { indent: "", w: "w-24", on: false },
+  ];
+
+  return (
+    <div className="space-y-2.5">
+      {rows.map((row, index) => (
+        <div key={index} className={`flex items-center gap-3 ${row.indent}`}>
+          <span
+            className={`flex size-4 shrink-0 items-center justify-center rounded border ${
+              row.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
+            }`}>
+            {row.on && <Check size={11} className="text-white" />}
+          </span>
+          <Line w={row.w} />
+        </div>
+      ))}
+      <div className="flex items-center gap-2 pt-1 text-zinc-300">
+        <Plus size={13} />
+        <Line w="w-12" h="h-1.5" tone="bg-zinc-100" />
+      </div>
+    </div>
+  );
+}
+
+function PreviewTags() {
+  const widths = ["w-14", "w-20", "w-12", "w-16", "w-24", "w-10"];
+
+  return (
+    <div className="rounded-xl border border-zinc-200 p-3">
+      <div className="flex flex-wrap gap-2">
+        {widths.map((width, index) => (
+          <span
+            key={width}
+            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 ${
+              index < 3 ? "bg-emerald-50" : "bg-zinc-100"
+            }`}>
+            <Tag size={10} className={index < 3 ? "text-emerald-600" : "text-zinc-400"} />
+            <Line w={width} h="h-1.5" tone={index < 3 ? "bg-emerald-200" : "bg-zinc-300"} />
+          </span>
+        ))}
+        <span className="inline-flex items-center gap-1 rounded-md border border-dashed border-zinc-300 px-2 py-1.5 text-zinc-300">
+          <Plus size={11} />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PreviewBrands() {
+  const tones = [
+    "bg-emerald-100",
+    "bg-sky-100",
+    "bg-amber-100",
+    "bg-violet-100",
+    "bg-rose-100",
+    "bg-zinc-100",
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-2.5">
+      {tones.map((tone) => (
+        <div
+          key={tone}
+          className="flex flex-col items-center gap-2 rounded-xl border border-zinc-200 px-2 py-3">
+          <span className={`size-7 rounded-lg ${tone}`} />
+          <Line w="w-10" h="h-1.5" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PreviewAttributes() {
+  const rows = [
+    { label: "w-10", options: ["w-5", "w-5", "w-6"] },
+    { label: "w-14", options: ["w-10", "w-12", "w-8"] },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row, index) => (
+        <div key={index} className="rounded-xl border border-zinc-200 p-3">
+          <Line w={row.label} h="h-1.5" />
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {row.options.map((option, spot) => (
+              <span
+                key={spot}
+                className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5">
+                <Line w={option} h="h-1.5" tone="bg-zinc-300" />
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 text-zinc-300">
+        <Plus size={13} />
+        <Line w="w-16" h="h-1.5" tone="bg-zinc-100" />
+      </div>
+    </div>
+  );
+}
+
+function PreviewReviews() {
+  const rows = [
+    { stars: 5, lines: ["w-32", "w-24"] },
+    { stars: 4, lines: ["w-28", "w-16"] },
+    { stars: 5, lines: ["w-24", "w-20"] },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row, index) => (
+        <div key={index} className="flex gap-3">
+          <span className="size-8 shrink-0 rounded-full bg-zinc-100" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <span className="flex gap-0.5">
+              {[0, 1, 2, 3, 4].map((spot) => (
+                <Star
+                  key={spot}
+                  size={11}
+                  className={spot < row.stars ? "text-amber-400" : "text-zinc-200"}
+                  fill="currentColor"
+                />
+              ))}
+            </span>
+            {row.lines.map((width) => (
+              <Line key={width} w={width} h="h-1.5" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PreviewCoupons() {
+  const { n } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-4 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 p-4">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
+          <Percent size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xl font-semibold text-zinc-900">{n(20)}%</p>
+          <span className="mt-1.5 block">
+            <Line w="w-24" h="h-1.5" tone="bg-emerald-200" />
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2.5">
+        <Line w="w-20" h="h-1.5" />
+        <Line w="w-10" h="h-1.5" tone="bg-zinc-300" />
+      </div>
+    </div>
+  );
+}
+
+function PreviewBulk() {
+  const { n } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+          <Upload size={16} />
+        </span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <Line w="w-28" h="h-1.5" />
+          <Line w="w-16" h="h-1.5" tone="bg-zinc-100" />
+        </div>
+        <Chip tone="emerald">CSV</Chip>
+      </div>
+
+      <div>
+        <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+          <span className="block h-full w-[72%] rounded-full bg-emerald-500" />
+        </div>
+        <p className="mt-2 text-[11px] font-medium text-zinc-500">
+          {n(216)} / {n(300)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/*
+  A prompt and what came back, for one of the three samples the AI section
+  already carries - "product", "blog" or "template". Three bands draw the
+  assistant, and this is the one that knows how.
+*/
+function AiSample({ sample }) {
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <p className="rounded-lg bg-zinc-100 px-3 py-2 text-[11px] leading-relaxed text-zinc-500">
+        {t(`landing.ai.samples.${sample}.prompt`)}
+      </p>
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 px-3 py-2.5">
+        <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-emerald-700 uppercase">
+          <Sparkles size={11} />
+          {t("landing.builder.ai.note")}
+        </span>
+        <p className="line-clamp-4 text-[11px] leading-relaxed text-zinc-700">
+          {t(`landing.ai.samples.${sample}.answer`)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PreviewAiContent() {
+  return <AiSample sample="product" />;
+}
+
+/* Index by index, the order of the catalogue's own feature list. */
+const CATALOGUE_PREVIEWS = [
+  PreviewProducts,
+  PreviewCategories,
+  PreviewTags,
+  PreviewBrands,
+  PreviewAttributes,
+  PreviewReviews,
+  PreviewCoupons,
+  PreviewBulk,
+  PreviewAiContent,
+];
+
+/*
+  The window itself, shared by both bands: a vertical tab strip of the
+  module's own feature names beside the illustration of whichever one is
+  open. `previews` is indexed by the feature's position in the module, and
+  `chrome` names the admin screen the window is pretending to be - left out
+  where the module is its own screen, so the module's name titles it and no
+  band has to invent a key to opt in.
+*/
+function ShowcaseWindow({ group, needle, previews, chrome }) {
+  const { t, n } = useI18n();
+  const base = useId();
+  const [active, setActive] = useState(group.items[0]);
+
+  /*
+    The search can take the selected feature off the list, so the open panel
+    is worked out from what is showing rather than stored - no effect to
+    keep the two in step, and nothing to go stale.
+  */
+  const panels = group.hits.map((item) => ({ item, index: group.items.indexOf(item) }));
+  const current = panels.find((panel) => panel.item === active) || panels[0];
+
+  const prefix = `${base}-c-`;
+  const tabId = useCallback((item) => `${prefix}${slug(item)}`, [prefix]);
+  const panelId = (item) => `${base}-cp-${slug(item)}`;
+
+  const onKeyDown = useTabKeys(
+    useMemo(() => panels.map((panel) => tabId(panel.item)), [panels, tabId]),
+    current ? tabId(current.item) : "",
+    useCallback(
+      (id) => {
+        const hit = panels.find((panel) => tabId(panel.item) === id);
+        if (hit) setActive(hit.item);
+      },
+      [panels, tabId],
+    ),
+    { vertical: true },
+  );
+
+  /*
+    Support ships exactly one feature, and the search can narrow any band to
+    one hit, so a window with a single-tab tab strip is a real case. It gets
+    the illustration on its own instead: a tablist of one navigates nothing,
+    and a tabpanel with no tablist to label it is not a tabpanel at all.
+  */
+  const single = panels.length === 1;
+
+  if (!current) return null;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl shadow-zinc-900/5">
+
+      {/* Window chrome */}
+      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3">
+        <span className="flex items-center gap-2 text-[11px] font-medium text-zinc-500">
+          <span className="flex size-5 items-center justify-center rounded-md bg-emerald-600 text-[8px] font-bold text-white">
+            CS
+          </span>
+          {chrome ? t(chrome) : group.name}
+        </span>
+        <span className="hidden items-center gap-1.5 text-[10px] text-zinc-400 sm:flex">
+          <MousePointerClick size={11} className="text-emerald-500" />
+          {t("landing.demo.hint")}
+        </span>
+      </div>
+
+      <div className={single ? undefined : "grid grid-cols-1 sm:grid-cols-[11.5rem_1fr]"}>
+
+        {/* The features, as the window's own navigation */}
+        {!single && (
+        <div
+          role="tablist"
+          aria-orientation="vertical"
+          aria-label={group.name}
+          onKeyDown={onKeyDown}
+          className="flex min-w-0 gap-1 overflow-x-auto border-b border-zinc-200 p-2 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r">
+          {panels.map((panel) => {
+            const selected = panel.item === current.item;
+
+            return (
+              <button
+                key={panel.item}
+                id={tabId(panel.item)}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={panelId(panel.item)}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActive(panel.item)}
+                className={`shrink-0 !rounded-lg !border-0 !px-2.5 !py-2 !text-left !text-[11px] !font-medium !shadow-none transition-colors sm:w-full ${
+                  selected
+                    ? "!bg-zinc-900 !text-white"
+                    : "!bg-transparent !text-zinc-600 hover:!bg-zinc-100 hover:!text-zinc-900"
+                }`}>
+                <Highlight text={panel.item} needle={group.matchedName ? "" : needle} />
+              </button>
+            );
+          })}
+        </div>
+        )}
+
+        {/*
+          Every panel is rendered and the inactive ones hidden, so every
+          feature name sits in the HTML on first paint. The fixed minimum
+          height stops the band resizing as you click down the list.
+        */}
+        <div className="min-h-[15.5rem] p-4 sm:p-5">
+          {panels.map((panel) => {
+            const Preview = previews[panel.index];
+            const selected = panel.item === current.item;
+
+            return (
+              <div
+                key={panel.item}
+                id={panelId(panel.item)}
+                role={single ? undefined : "tabpanel"}
+                aria-labelledby={single ? undefined : tabId(panel.item)}
+                hidden={!selected}
+                tabIndex={single ? undefined : selected ? 0 : -1}
+                className={selected ? "cs-rise" : undefined}>
+                <p className="mb-3.5 flex items-center justify-between gap-3 text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">
+                  {panel.item}
+                  <span className="font-medium normal-case">
+                    {n(panel.index + 1)}/{n(group.items.length)}
+                  </span>
+                </p>
+                {/* An illustration, not a screenshot: the tabs carry the facts. */}
+                <div aria-hidden="true">{Preview ? <Preview /> : <Line w="w-32" />}</div>
+              </div>
+            );
+          })}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function CatalogueShowcase(props) {
+  return (
+    <ShowcaseWindow
+      {...props}
+      previews={CATALOGUE_PREVIEWS}
+      chrome="landing.demo.tabs.products"
+    />
+  );
+}
+
+/* ─────────────────── orders showcase ─────────────────── */
+
+/*
+  The Orders band's side of the page - the left one, since Orders is the
+  second module and the bands alternate.
+
+  Four features, and each is a different screen rather than a different view
+  of the same one: an order on its way out, a checkout that stopped halfway,
+  money going back, and a charge that repeats. A list of four names says
+  none of that, so they are drawn.
+
+  The numbers are borrowed where the page already states them - the order
+  rows from the hero's own listing, so #1042 is packed here and packed
+  there - and invented only where nothing exists to borrow (the recovered
+  count, the billing cycle), the way the bulk-upload preview invents its
+  progress. Everything else is greeked.
+*/
+
+/* An order's own row from the hero listing: "#1042|bKash|৳1,450|Packed". */
+function useSampleOrder(index) {
+  const { tList } = useI18n();
+  const rows = tList("landing.demo.orders.rows");
+  const [no, payment, total, status] = cells(rows[index] || "|||");
+  return { no, payment, total, status };
+}
+
+/* Placed, paid, packed - delivery still open, which is the usual state. */
+function PreviewOrderDetail() {
+  const order = useSampleOrder(0);
+  const steps = [true, true, true, false];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+          <ClipboardList size={17} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-zinc-900">{order.no}</span>
+          <span className="mt-1.5 block">
+            <Line w="w-20" h="h-1.5" />
+          </span>
+        </span>
+        <Chip tone="amber">{order.status}</Chip>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="w-8" value={order.total} />
+        <Field label="w-12" value={order.payment} />
+      </div>
+
+      {/*
+        The fulfilment steps, as a rail: a dot per step and the joining bar
+        filled only as far as the order has actually got.
+      */}
+      <div className="flex items-center rounded-xl border border-zinc-200 px-3 py-3.5">
+        {steps.map((done, index) => (
+          <span key={index} className="flex min-w-0 flex-1 items-center gap-1.5 last:flex-none">
+            <span
+              className={`size-2.5 shrink-0 rounded-full ${
+                done ? "bg-emerald-500" : "border border-zinc-300 bg-white"
+              }`}
+            />
+            {index < steps.length - 1 && (
+              <span
+                className={`h-0.5 min-w-0 flex-1 rounded-full ${
+                  steps[index + 1] ? "bg-emerald-500" : "bg-zinc-200"
+                }`}
+              />
+            )}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Two carts that stopped at checkout, and how many were talked back. */
+function PreviewIncomplete() {
+  const { n } = useI18n();
+  const first = useSampleOrder(1);
+  const second = useSampleOrder(2);
+
+  return (
+    <div className="space-y-3">
+      {[first, second].map((order, index) => (
+        <div
+          key={order.no}
+          className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+            <ShoppingCart size={15} />
+          </span>
+          <div className="min-w-0 flex-1 space-y-2">
+            <Line w={index ? "w-20" : "w-28"} h="h-1.5" />
+            <Line w={index ? "w-12" : "w-16"} h="h-1.5" tone="bg-zinc-100" />
+          </div>
+          <span className="shrink-0 text-[11px] font-semibold text-zinc-800">{order.total}</span>
+        </div>
+      ))}
+
+      {/* Recovered against abandoned - the one pair of invented numbers. */}
+      <div>
+        <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+          <span className="block h-full w-[64%] rounded-full bg-amber-500" />
+        </div>
+        <p className="mt-2 text-[11px] font-medium text-zinc-500">
+          {n(9)} / {n(14)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* The refunded order from the hero listing, with the money going back. */
+function PreviewRefunds() {
+  const order = useSampleOrder(3);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-4 rounded-xl border border-dashed border-rose-300 bg-rose-50/50 p-4">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white">
+          <Undo2 size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xl font-semibold text-zinc-900">{order.total}</p>
+          <span className="mt-1.5 block">
+            <Line w="w-24" h="h-1.5" tone="bg-rose-200" />
+          </span>
+        </div>
+        <Chip tone="rose">{order.status}</Chip>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 px-3 py-2.5 text-[11px] font-medium">
+        <span className="truncate text-zinc-900">{order.no}</span>
+        <span className="truncate text-zinc-500">{order.payment}</span>
+      </div>
+    </div>
+  );
+}
+
+/* A plan that charges itself: three cycles taken, the rest still to come. */
+function PreviewSubscriptions() {
+  const { t, n } = useI18n();
+  const taken = 3;
+  const cycles = 6;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+          <RefreshCw size={15} />
+        </span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <Line w="w-28" h="h-1.5" />
+          <Line w="w-16" h="h-1.5" tone="bg-zinc-100" />
+        </div>
+        <Chip tone="sky">{n(30)}</Chip>
+      </div>
+
+      <Field label="w-14" value={t("landing.mock.price1")} />
+
+      <div className="rounded-xl border border-zinc-200 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <Line w="w-20" h="h-1.5" />
+          <span className="text-[11px] font-medium text-zinc-500">
+            {n(taken)} / {n(12)}
+          </span>
+        </div>
+        <div className="mt-2.5 flex gap-1.5">
+          {Array.from({ length: cycles }, (_, index) => (
+            <span
+              key={index}
+              className={`h-6 flex-1 rounded-md ${
+                index < taken ? "bg-sky-500" : "border border-dashed border-zinc-300 bg-zinc-50"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.orders.items`. */
+const ORDERS_PREVIEWS = [
+  PreviewOrderDetail,
+  PreviewIncomplete,
+  PreviewRefunds,
+  PreviewSubscriptions,
+];
+
+function OrdersShowcase(props) {
+  return (
+    <ShowcaseWindow {...props} previews={ORDERS_PREVIEWS} chrome="landing.demo.tabs.orders" />
+  );
+}
+
+/* ─────────────────── stock showcase ─────────────────── */
+
+/*
+  The Stock band's side, which is the right one: Stock is the third module,
+  so the alternation hands it back the side Catalogue had.
+
+  Three features and three different answers to "how much is there?" - the
+  live count you edit, the ledger behind it, and the shelf that is about to
+  go empty. The band's own claim is that the count has a history, and a
+  ledger is the one thing a list of three names cannot show.
+
+  Products and their stock phrases come from the hero's catalogue listing,
+  so the saree is forty-two in stock here and forty-two there, and the low
+  count is the one the insights tile already prints. The adjustments in the
+  ledger are invented - nothing on the page states them - and the rest is
+  greeked.
+*/
+
+/* Live counts: the first product as the admin edits it, then the shelf. */
+function PreviewStockLevels() {
+  const { n, tList } = useI18n();
+  const [name] = cells(tList("landing.demo.products.rows")[0] || "|||");
+
+  /* Three shelves at a glance - the third is the one in trouble. */
+  const levels = [
+    { bar: "w-[88%]", fill: "bg-emerald-500", label: "w-12", value: n(42) },
+    { bar: "w-[64%]", fill: "bg-emerald-500", label: "w-16", value: n(88) },
+    { bar: "w-[12%]", fill: "bg-amber-500", label: "w-10", value: n(6) },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="size-10 shrink-0 rounded-lg bg-emerald-100" />
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900">
+          {name}
+        </span>
+        {/* The count as a stepper, because this is the screen you type into. */}
+        <span className="flex shrink-0 items-center gap-2 rounded-lg border border-zinc-200 px-2 py-1.5">
+          <Minus size={11} className="text-zinc-300" />
+          <span className="text-[12px] font-semibold text-zinc-900">{n(42)}</span>
+          <Plus size={11} className="text-emerald-600" />
+        </span>
+      </div>
+
+      <div className="space-y-2.5 rounded-xl border border-zinc-200 p-3">
+        {levels.map((level) => (
+          <div key={level.label} className="flex items-center gap-2.5">
+            <Line w={level.label} h="h-1.5" />
+            <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-100">
+              <span className={`block h-full rounded-full ${level.bar} ${level.fill}`} />
+            </span>
+            <span className="shrink-0 text-[10px] font-semibold text-zinc-500">
+              {level.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* The ledger behind the count, as a rail of adjustments. */
+function PreviewStockHistory() {
+  const { n } = useI18n();
+
+  const entries = [
+    { delta: `+${n(60)}`, tone: "emerald", w: "w-20" },
+    { delta: `−${n(3)}`, tone: "rose", w: "w-24" },
+    { delta: `+${n(24)}`, tone: "emerald", w: "w-16" },
+  ];
+
+  return (
+    <div className="rounded-xl border border-zinc-200 p-3.5">
+      {entries.map((entry, index) => {
+        const last = index === entries.length - 1;
+
+        return (
+          <div key={entry.delta} className="flex gap-2.5">
+            <span className="flex flex-col items-center">
+              <span
+                className={`size-2 shrink-0 rounded-full ${
+                  index ? "bg-zinc-300" : "bg-emerald-500"
+                }`}
+              />
+              {!last && <span className="w-px flex-1 bg-zinc-200" />}
+            </span>
+
+            <div className={`min-w-0 flex-1 ${last ? "" : "pb-4"}`}>
+              <span className="flex items-center justify-between gap-2">
+                <Line w={entry.w} h="h-1.5" />
+                <Chip tone={entry.tone}>{entry.delta}</Chip>
+              </span>
+              <span className="mt-2 block">
+                <Line w="w-10" h="h-1.5" tone="bg-zinc-100" />
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* The seven the insights tile counts, and the two worst of them named. */
+function PreviewLowStock() {
+  const { n, tList } = useI18n();
+  const rows = tList("landing.demo.products.rows");
+  const low = [1, 3].map((index) => cells(rows[index] || "|||"));
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-4">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+          <TriangleAlert size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xl font-semibold text-zinc-900">{n(7)}</p>
+          <span className="mt-1.5 block">
+            <Line w="w-20" h="h-1.5" tone="bg-amber-200" />
+          </span>
+        </div>
+      </div>
+
+      {low.map(([name, , , stock], index) => (
+        <div
+          key={name}
+          className="flex items-center gap-2.5 rounded-lg border border-zinc-200 px-3 py-2.5">
+          <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-zinc-900">
+            {name}
+          </span>
+          <Chip tone={index ? "rose" : "amber"}>{stock}</Chip>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.inventory.items`. */
+const STOCK_PREVIEWS = [PreviewStockLevels, PreviewStockHistory, PreviewLowStock];
+
+/* No `chrome`: Stock is its own screen, so the module's name titles it. */
+function StockShowcase(props) {
+  return <ShowcaseWindow {...props} previews={STOCK_PREVIEWS} />;
+}
+
+/* ─────────────────── insights showcase ─────────────────── */
+
+/*
+  The Insights band's side, the left one again - fourth module.
+
+  Four features that are four different reports, which is exactly what a
+  list of four names flattens: a dashboard of totals, a log of who changed
+  what, a league table of customers and one of products. Drawn, they read
+  as four screens; named, they read as one.
+
+  The totals, the week of bars and the product names are the ones the hero's
+  own insights and catalogue panels already print, so the revenue here is
+  the revenue there. Order counts and units sold are invented - no string
+  on the page states them - and the staff, the names and the timestamps are
+  greeked, because a product shot of a customer list should not put words in
+  a made-up customer's mouth.
+*/
+
+/* A tile from the hero's own insights: "Revenue|৳38,400|+12%". */
+function StatTile({ tile }) {
+  const [label, value, change] = cells(tile);
+  const tone = change.startsWith("+")
+    ? "text-emerald-600"
+    : change.startsWith("−") || change.startsWith("-")
+      ? "text-rose-600"
+      : "text-zinc-400";
+
+  return (
+    <div className="min-w-0 rounded-xl border border-zinc-200 px-3 py-2.5">
+      <p className="truncate text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900">{value}</p>
+      <p className={`text-[10px] font-semibold ${tone}`}>{change}</p>
+    </div>
+  );
+}
+
+/* The dashboard: two of the hero's four tiles, over the same week. */
+function PreviewStats() {
+  const { t, tList } = useI18n();
+  const tiles = tList("landing.demo.insights.tiles");
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[10px] font-semibold tracking-wide text-zinc-400 uppercase">
+        {t("landing.demo.insights.heading")}
+      </p>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        {tiles.slice(0, 2).map((tile) => (
+          <StatTile key={tile} tile={tile} />
+        ))}
+      </div>
+
+      <div className="flex h-16 items-end gap-1.5 rounded-xl border border-zinc-200 px-3 py-2.5">
+        {WEEK_BARS.map((height, index) => (
+          <span
+            key={index}
+            style={{ height: `${height}%` }}
+            className={`flex-1 rounded-sm ${
+              index === WEEK_BARS.length - 1 ? "bg-emerald-500" : "bg-emerald-200"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Who changed what: a staff member, the thing, and when. */
+function PreviewActivityLog() {
+  const rows = [
+    { tone: "bg-emerald-100", w: "w-24", meta: "w-12", chip: "emerald" },
+    { tone: "bg-sky-100", w: "w-28", meta: "w-10", chip: "sky" },
+    { tone: "bg-amber-100", w: "w-20", meta: "w-14", chip: "zinc" },
+  ];
+
+  return (
+    <div className="space-y-2.5">
+      {rows.map((row) => (
+        <div
+          key={row.w}
+          className="flex items-center gap-3 rounded-xl border border-zinc-200 px-3 py-2.5">
+          <span className={`size-8 shrink-0 rounded-full ${row.tone}`} />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Line w={row.w} h="h-1.5" />
+            <Line w={row.meta} h="h-1.5" tone="bg-zinc-100" />
+          </div>
+          <span className="shrink-0">
+            <Chip tone={row.chip}>
+              <Line w="w-6" h="h-1" tone="bg-current" />
+            </Chip>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* The league table of buyers: rank, who, and how often they came back. */
+function PreviewTopCustomers() {
+  const { n } = useI18n();
+
+  const rows = [
+    { tone: "bg-emerald-100", w: "w-24", orders: 12 },
+    { tone: "bg-sky-100", w: "w-20", orders: 9 },
+    { tone: "bg-rose-100", w: "w-28", orders: 7 },
+  ];
+
+  return (
+    <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 px-3">
+      {rows.map((row, index) => (
+        <div key={row.w} className="flex items-center gap-2.5 py-3">
+          <span className="w-3 shrink-0 text-[11px] font-semibold text-zinc-400">
+            {n(index + 1)}
+          </span>
+          <span className={`size-8 shrink-0 rounded-full ${row.tone}`} />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Line w={row.w} h="h-1.5" />
+            <Line w="w-10" h="h-1.5" tone="bg-zinc-100" />
+          </div>
+          <span className="shrink-0">
+            <Chip tone={index ? "zinc" : "emerald"}>{n(row.orders)}</Chip>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* What actually sold, from the hero's catalogue - the three it names. */
+function PreviewTopSelling() {
+  const { n, tList } = useI18n();
+  const rows = tList("landing.demo.products.rows");
+
+  const sellers = [
+    { index: 0, bar: "w-[92%]", units: 48 },
+    { index: 1, bar: "w-[61%]", units: 31 },
+    { index: 3, bar: "w-[44%]", units: 22 },
+  ];
+
+  return (
+    <div className="space-y-3 rounded-xl border border-zinc-200 p-3.5">
+      {sellers.map((seller) => {
+        const [name] = cells(rows[seller.index] || "|||");
+
+        return (
+          <div key={name}>
+            <div className="flex items-center justify-between gap-2.5">
+              <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-zinc-900">
+                {name}
+              </span>
+              <span className="shrink-0 text-[10px] font-semibold text-zinc-500">
+                {n(seller.units)}
+              </span>
+            </div>
+            <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-zinc-100">
+              <span className={`block h-full rounded-full bg-emerald-500 ${seller.bar}`} />
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.insights.items`. */
+const INSIGHTS_PREVIEWS = [
+  PreviewStats,
+  PreviewActivityLog,
+  PreviewTopCustomers,
+  PreviewTopSelling,
+];
+
+function InsightsShowcase(props) {
+  return (
+    <ShowcaseWindow
+      {...props}
+      previews={INSIGHTS_PREVIEWS}
+      chrome="landing.demo.tabs.insights"
+    />
+  );
+}
+
+/* ─────────── shared preview pieces ─────────── */
+
+/*
+  Two shapes the remaining bands keep needing: a settings switch, and a sum
+  of money the page has to invent.
+
+  `Taka` is the one place a preview writes currency itself. Both catalogues
+  spell the symbol ৳ and group thousands with a comma, so the digits go
+  through `n` and the rest is the same string in either locale - which is
+  why an invented sum can live here without a translator ever seeing it.
+*/
+function Toggle({ on = true }) {
+  return (
+    <span
+      className={`flex h-4 w-7 shrink-0 items-center rounded-full px-0.5 ${
+        on ? "justify-end bg-emerald-500" : "justify-start bg-zinc-200"
+      }`}>
+      <span className="size-3 rounded-full bg-white" />
+    </span>
+  );
+}
+
+function Taka({ amount }) {
+  const { n } = useI18n();
+  return <>৳{n(amount)}</>;
+}
+
+/* ─────────────────── accounting showcase ─────────────────── */
+
+/*
+  The Accounting band's side, the right one - fifth module.
+
+  The band's claim is that margin is a number you read rather than one you
+  work out, so the first panel is that subtraction: the revenue the hero
+  already reports, the costs under it, the margin at the bottom. The other
+  two are where those costs come from - a running expense list and a
+  supplier invoice.
+
+  Revenue is the insights tile's own figure. The costs, the margin and the
+  invoice total are invented, because nothing on the page states them, and
+  they are the one set of sums a preview writes itself - see `Taka`.
+*/
+
+/* Revenue, less costs, equals margin - the subtraction in one card. */
+function PreviewLedger() {
+  const { n, tList } = useI18n();
+  const [label, revenue] = cells(tList("landing.demo.insights.tiles")[0] || "||");
+
+  const lines = [
+    { w: "w-16", value: <Taka amount="12,480" />, tone: "text-zinc-900" },
+    { w: "w-12", value: <Taka amount="3,150" />, tone: "text-zinc-900" },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-zinc-200 p-3.5">
+        <p className="truncate text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
+          {label}
+        </p>
+        <p className="mt-0.5 truncate text-xl font-semibold text-zinc-900">{revenue}</p>
+
+        <div className="mt-3 space-y-2.5 border-t border-zinc-100 pt-3">
+          {lines.map((line) => (
+            <div key={line.w} className="flex items-center justify-between gap-3">
+              <Line w={line.w} h="h-1.5" />
+              <span className={`text-[11px] font-medium ${line.tone}`}>−{line.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/50 px-3.5 py-3">
+        <Line w="w-14" h="h-1.5" tone="bg-emerald-200" />
+        <span className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-zinc-900">
+            <Taka amount="22,770" />
+          </span>
+          <Chip tone="emerald">{n(59)}%</Chip>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* What the shop spent, by category, with the month's total on top. */
+function PreviewExpenses() {
+  const rows = [
+    { w: "w-20", meta: "w-10", amount: "4,200", tone: "bg-rose-100 text-rose-600" },
+    { w: "w-24", meta: "w-12", amount: "2,850", tone: "bg-amber-100 text-amber-600" },
+    { w: "w-16", meta: "w-8", amount: "1,430", tone: "bg-sky-100 text-sky-600" },
+  ];
+
+  return (
+    <div className="space-y-2.5">
+      {rows.map((row) => (
+        <div
+          key={row.w}
+          className="flex items-center gap-3 rounded-xl border border-zinc-200 px-3 py-2.5">
+          <span
+            className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${row.tone}`}>
+            <Banknote size={14} />
+          </span>
+          <div className="min-w-0 flex-1 space-y-2">
+            <Line w={row.w} h="h-1.5" />
+            <Line w={row.meta} h="h-1.5" tone="bg-zinc-100" />
+          </div>
+          <span className="shrink-0 text-[11px] font-semibold text-zinc-800">
+            <Taka amount={row.amount} />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* A supplier invoice: one paid, one still open. */
+function PreviewPurchases() {
+  const { n } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-4 rounded-xl border border-zinc-200 p-3.5">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white">
+          <Receipt size={17} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-lg font-semibold text-zinc-900">
+            <Taka amount="18,600" />
+          </p>
+          <span className="mt-1.5 block">
+            <Line w="w-20" h="h-1.5" />
+          </span>
+        </div>
+        <Chip tone="amber">{n(14)}</Chip>
+      </div>
+
+      {[
+        { w: "w-24", tone: "emerald" },
+        { w: "w-16", tone: "zinc" },
+      ].map((row) => (
+        <div
+          key={row.w}
+          className="flex items-center gap-2.5 rounded-lg border border-zinc-200 px-3 py-2.5">
+          <Landmark size={13} className="shrink-0 text-zinc-400" />
+          <span className="min-w-0 flex-1">
+            <Line w={row.w} h="h-1.5" />
+          </span>
+          <Chip tone={row.tone}>
+            <Line w="w-7" h="h-1" tone="bg-current" />
+          </Chip>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.accounting.items`. */
+const ACCOUNTING_PREVIEWS = [PreviewLedger, PreviewExpenses, PreviewPurchases];
+
+function AccountingShowcase(props) {
+  return <ShowcaseWindow {...props} previews={ACCOUNTING_PREVIEWS} />;
+}
+
+/* ─────────────────── delivery showcase ─────────────────── */
+
+/*
+  The Delivery band's side, the left one - sixth module.
+
+  Four features and four screens: the rider carrying an order, the courier
+  companies the shop can hand it to instead, the zones that decide what
+  checkout charges, and the methods a customer picks between. The couriers
+  are the four the page already names in its own section - `COURIERS` - with
+  their own icons, so nothing is invented but the rates.
+*/
+
+/* The order already out with a rider, from the hero's own listing. */
+function PreviewDeliveryJob() {
+  const order = useSampleOrder(1);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+          <Bike size={17} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-zinc-900">{order.no}</span>
+          <span className="mt-1.5 block">
+            <Line w="w-16" h="h-1.5" />
+          </span>
+        </span>
+        <Chip tone="sky">{order.status}</Chip>
+      </div>
+
+      <Field label="w-10" value={order.total} />
+
+      {/* Picked up, on the way, not yet handed over. */}
+      <div className="flex items-center gap-2.5 rounded-xl border border-zinc-200 px-3 py-3.5">
+        <MapPin size={13} className="shrink-0 text-emerald-600" />
+        <span className="h-0.5 w-6 shrink-0 rounded-full bg-emerald-500" />
+        <Bike size={13} className="shrink-0 text-emerald-600" />
+        <span className="h-0.5 min-w-0 flex-1 rounded-full bg-zinc-200" />
+        <MapPin size={13} className="shrink-0 text-zinc-300" />
+      </div>
+    </div>
+  );
+}
+
+/* The four courier companies the page already names, as switches. */
+function PreviewCouriers() {
+  const { t } = useI18n();
+
+  return (
+    <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 px-3">
+      {COURIERS.map((courier, index) => {
+        const Icon = courier.icon;
+
+        return (
+          <div key={courier.key} className="flex items-center gap-2.5 py-2.5">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <Icon size={13} />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-zinc-900">
+              {t(`landing.couriers.items.${courier.key}.name`)}
+            </span>
+            <Toggle on={index < 3} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Zones, each with the rate checkout will charge for it. */
+function PreviewZones() {
+  const zones = [
+    { w: "w-16", rate: "60", tone: "bg-emerald-100" },
+    { w: "w-20", rate: "120", tone: "bg-sky-100" },
+    { w: "w-14", rate: "180", tone: "bg-amber-100" },
+  ];
+
+  return (
+    <div className="space-y-2.5">
+      {zones.map((zone) => (
+        <div
+          key={zone.w}
+          className="flex items-center gap-3 rounded-xl border border-zinc-200 px-3 py-2.5">
+          <span
+            className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${zone.tone} text-zinc-600`}>
+            <MapPin size={13} />
+          </span>
+          <div className="min-w-0 flex-1 space-y-2">
+            <Line w={zone.w} h="h-1.5" />
+            <Line w="w-10" h="h-1.5" tone="bg-zinc-100" />
+          </div>
+          <span className="shrink-0 text-[11px] font-semibold text-zinc-800">
+            <Taka amount={zone.rate} />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* What the customer picks between at checkout - one of them chosen. */
+function PreviewShippingMethods() {
+  const methods = [
+    { w: "w-20", rate: "60", on: false, icon: Truck },
+    { w: "w-24", rate: "120", on: true, icon: Zap },
+    { w: "w-16", rate: "0", on: false, icon: Store },
+  ];
+
+  return (
+    <div className="space-y-2.5">
+      {methods.map((method) => {
+        const Icon = method.icon;
+
+        return (
+          <div
+            key={method.w}
+            className={`flex items-center gap-3 rounded-xl border px-3 py-3 ${
+              method.on ? "border-emerald-500 bg-emerald-50/50" : "border-zinc-200"
+            }`}>
+            <span
+              className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                method.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
+              }`}>
+              {method.on && <span className="size-1.5 rounded-full bg-white" />}
+            </span>
+            <Icon size={14} className={method.on ? "text-emerald-600" : "text-zinc-400"} />
+            <span className="min-w-0 flex-1">
+              <Line w={method.w} h="h-1.5" />
+            </span>
+            <span className="shrink-0 text-[11px] font-semibold text-zinc-800">
+              <Taka amount={method.rate} />
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.delivery.items`. */
+const DELIVERY_PREVIEWS = [
+  PreviewDeliveryJob,
+  PreviewCouriers,
+  PreviewZones,
+  PreviewShippingMethods,
+];
+
+function DeliveryShowcase(props) {
+  return <ShowcaseWindow {...props} previews={DELIVERY_PREVIEWS} />;
+}
+
+/* ─────────────────── team showcase ─────────────────── */
+
+/*
+  The Team band's side, the right one - seventh module, and the longest list
+  after the catalogue.
+
+  Five of its eight features are a person with a job: a manager, an agent, a
+  supplier, a rider, an affiliate. They are the same screen with a different
+  icon and a different set of boxes ticked, which is exactly the band's
+  claim - everyone gets the screens their job needs - so they share one
+  component rather than five near-copies of it. The other three are their
+  own screens: the permission matrix, the customer list, and the CSV that
+  adds a hundred users at once.
+
+  Nobody is named. A product shot of a staff list that invents a person is
+  worse than one that greeks them, so every name, email and address here is
+  a grey bar.
+*/
+
+/*
+  One job, its badge, and the screens it can open. `allowed` is the tick
+  list - a width per row so the greeked screen names are not all one length.
+*/
+function RoleCard({ icon: Icon, tone, chip, count, allowed }) {
+  const { n } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${tone}`}>
+          <Icon size={17} />
+        </span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <Line w="w-24" h="h-1.5" />
+          <Line w="w-14" h="h-1.5" tone="bg-zinc-100" />
+        </div>
+        <Chip tone={chip}>{n(count)}</Chip>
+      </div>
+
+      <div className="space-y-2.5 rounded-xl border border-zinc-200 p-3">
+        {allowed.map((row) => (
+          <div key={row.w} className="flex items-center gap-2.5">
+            <span
+              className={`flex size-4 shrink-0 items-center justify-center rounded border ${
+                row.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
+              }`}>
+              {row.on && <Check size={11} className="text-white" />}
+            </span>
+            <Line w={row.w} h="h-1.5" tone={row.on ? "bg-zinc-200" : "bg-zinc-100"} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Who can open what, as a grid of three roles against four screens. */
+function PreviewRoles() {
+  const rows = [
+    { w: "w-16", on: [true, true, true] },
+    { w: "w-20", on: [true, true, false] },
+    { w: "w-14", on: [true, false, false] },
+    { w: "w-24", on: [true, false, false] },
+  ];
+
+  return (
+    <div className="rounded-xl border border-zinc-200 p-3.5">
+      {/* The column heads, greeked: the roles are the page's own copy. */}
+      <div className="mb-3 flex items-center gap-2.5 border-b border-zinc-100 pb-3">
+        <span className="min-w-0 flex-1" />
+        {["w-5", "w-5", "w-5"].map((width, index) => (
+          <span key={index} className="flex w-6 justify-center">
+            <Line w={width} h="h-1.5" tone="bg-zinc-200" />
+          </span>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {rows.map((row) => (
+          <div key={row.w} className="flex items-center gap-2.5">
+            <span className="min-w-0 flex-1">
+              <Line w={row.w} h="h-1.5" />
+            </span>
+            {row.on.map((on, index) => (
+              <span key={index} className="flex w-6 justify-center">
+                {on ? (
+                  <Check size={13} className="text-emerald-600" />
+                ) : (
+                  <Minus size={13} className="text-zinc-300" />
+                )}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* The customer list, searchable - orders each, nobody named. */
+function PreviewCustomers() {
+  const { n } = useI18n();
+
+  const rows = [
+    { tone: "bg-emerald-100", w: "w-24", orders: 6 },
+    { tone: "bg-sky-100", w: "w-20", orders: 3 },
+    { tone: "bg-amber-100", w: "w-28", orders: 1 },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2">
+        <Search size={13} className="shrink-0 text-zinc-400" />
+        <Line w="w-16" h="h-1.5" tone="bg-zinc-100" />
+      </div>
+
+      <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 px-3">
+        {rows.map((row) => (
+          <div key={row.w} className="flex items-center gap-2.5 py-2.5">
+            <span className={`size-8 shrink-0 rounded-full ${row.tone}`} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Line w={row.w} h="h-1.5" />
+              <Line w="w-12" h="h-1.5" tone="bg-zinc-100" />
+            </div>
+            <Chip tone="zinc">{n(row.orders)}</Chip>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* The five jobs, each the same screen with a different set of keys. */
+function PreviewManager() {
+  return (
+    <RoleCard
+      icon={Store}
+      tone="bg-emerald-50 text-emerald-600"
+      chip="emerald"
+      count={12}
+      allowed={[
+        { w: "w-20", on: true },
+        { w: "w-16", on: true },
+        { w: "w-24", on: true },
+        { w: "w-14", on: true },
+      ]}
+    />
+  );
+}
+
+function PreviewAgent() {
+  return (
+    <RoleCard
+      icon={Headset}
+      tone="bg-sky-50 text-sky-600"
+      chip="sky"
+      count={8}
+      allowed={[
+        { w: "w-24", on: true },
+        { w: "w-16", on: true },
+        { w: "w-20", on: false },
+        { w: "w-14", on: false },
+      ]}
+    />
+  );
+}
+
+function PreviewSuppliers() {
+  return (
+    <RoleCard
+      icon={Boxes}
+      tone="bg-amber-50 text-amber-600"
+      chip="amber"
+      count={5}
+      allowed={[
+        { w: "w-16", on: true },
+        { w: "w-24", on: true },
+        { w: "w-20", on: false },
+        { w: "w-12", on: false },
+      ]}
+    />
+  );
+}
+
+function PreviewRiders() {
+  return (
+    <RoleCard
+      icon={Bike}
+      tone="bg-emerald-50 text-emerald-600"
+      chip="emerald"
+      count={3}
+      allowed={[
+        { w: "w-20", on: true },
+        { w: "w-14", on: false },
+        { w: "w-24", on: false },
+        { w: "w-16", on: false },
+      ]}
+    />
+  );
+}
+
+function PreviewAffiliates() {
+  return (
+    <RoleCard
+      icon={Megaphone}
+      tone="bg-violet-50 text-violet-600"
+      chip="zinc"
+      count={9}
+      allowed={[
+        { w: "w-24", on: true },
+        { w: "w-16", on: true },
+        { w: "w-20", on: false },
+        { w: "w-12", on: false },
+      ]}
+    />
+  );
+}
+
+/* A hundred users from one file - the catalogue's upload, for people. */
+function PreviewBulkUsers() {
+  const { n } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+          <Users size={16} />
+        </span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <Line w="w-24" h="h-1.5" />
+          <Line w="w-14" h="h-1.5" tone="bg-zinc-100" />
+        </div>
+        <Chip tone="emerald">CSV</Chip>
+      </div>
+
+      <div>
+        <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+          <span className="block h-full w-[84%] rounded-full bg-emerald-500" />
+        </div>
+        <p className="mt-2 text-[11px] font-medium text-zinc-500">
+          {n(84)} / {n(100)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.people.items`. */
+const PEOPLE_PREVIEWS = [
+  PreviewRoles,
+  PreviewCustomers,
+  PreviewManager,
+  PreviewAgent,
+  PreviewSuppliers,
+  PreviewRiders,
+  PreviewBulkUsers,
+  PreviewAffiliates,
+];
+
+function PeopleShowcase(props) {
+  return <ShowcaseWindow {...props} previews={PEOPLE_PREVIEWS} />;
+}
+
+/* ─────────────────── content showcase ─────────────────── */
+
+/*
+  The Content band's side, the left one - ninth module.
+
+  Three features: the posts, the assistant that drafts them, and the library
+  the photos live in. The assistant panel is the catalogue's own, pointed at
+  the blog sample the AI section already carries, so the draft shown here is
+  the draft shown there.
+*/
+
+/* The post list: one published, one scheduled, one still a draft. */
+function PreviewBlog() {
+  const posts = [
+    { tone: "bg-emerald-100", w: "w-24", chip: "emerald" },
+    { tone: "bg-sky-100", w: "w-20", chip: "sky" },
+    { tone: "bg-zinc-100", w: "w-28", chip: "zinc" },
+  ];
+
+  return (
+    <div className="space-y-2.5">
+      {posts.map((post) => (
+        <div
+          key={post.w}
+          className="flex items-center gap-3 rounded-xl border border-zinc-200 p-2.5">
+          <span className={`size-10 shrink-0 rounded-lg ${post.tone}`} />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Line w={post.w} h="h-1.5" />
+            <Line w="w-12" h="h-1.5" tone="bg-zinc-100" />
+          </div>
+          <span className="shrink-0">
+            <Chip tone={post.chip}>
+              <Line w="w-6" h="h-1" tone="bg-current" />
+            </Chip>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PreviewAiBlog() {
+  return <AiSample sample="blog" />;
+}
+
+/* Everything the shop has shot, and the tile that takes more. */
+function PreviewMedia() {
+  const tones = [
+    "bg-emerald-100",
+    "bg-sky-100",
+    "bg-amber-100",
+    "bg-rose-100",
+    "bg-violet-100",
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2.5">
+        {tones.map((tone) => (
+          <span key={tone} className={`aspect-square rounded-lg ${tone}`} />
+        ))}
+        <span className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-zinc-300 text-zinc-300">
+          <Plus size={16} />
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2.5 rounded-lg border border-zinc-200 px-3 py-2.5">
+        <Upload size={13} className="shrink-0 text-emerald-600" />
+        <Line w="w-20" h="h-1.5" />
+      </div>
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.content.items`. */
+const CONTENT_PREVIEWS = [PreviewBlog, PreviewAiBlog, PreviewMedia];
+
+function ContentShowcase(props) {
+  return <ShowcaseWindow {...props} previews={CONTENT_PREVIEWS} />;
+}
+
+/* ─────────────────── support showcase ─────────────────── */
+
+/*
+  The Support band's side, the right one - tenth module, and the only one
+  with a single feature, so the window drops its tab strip entirely.
+
+  The band's claim is that the order history is attached to the ticket, and
+  that is the whole illustration: the question on top, the order it is about
+  underneath, taken from the hero's own listing.
+*/
+function PreviewTickets() {
+  const { n } = useI18n();
+  const order = useSampleOrder(2);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+          <Headset size={17} />
+        </span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <Line w="w-28" h="h-1.5" />
+          <Line w="w-16" h="h-1.5" tone="bg-zinc-100" />
+        </div>
+        <Chip tone="sky">{n(2)}</Chip>
+      </div>
+
+      {/* The order the ticket is about, attached rather than asked for. */}
+      <div className="rounded-xl border border-zinc-200 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="truncate text-[11px] font-semibold text-zinc-900">{order.no}</span>
+          <Chip tone="emerald">{order.status}</Chip>
+        </div>
+        <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-zinc-100 pt-2.5">
+          <Line w="w-16" h="h-1.5" />
+          <span className="text-[11px] font-medium text-zinc-800">{order.total}</span>
+        </div>
+      </div>
+
+      <div className="space-y-2 rounded-xl bg-zinc-50 px-3 py-2.5">
+        <Line w="w-24" h="h-1.5" tone="bg-zinc-200" />
+        <Line w="w-16" h="h-1.5" tone="bg-zinc-200" />
+      </div>
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.support.items`. */
+const SUPPORT_PREVIEWS = [PreviewTickets];
+
+function SupportShowcase(props) {
+  return <ShowcaseWindow {...props} previews={SUPPORT_PREVIEWS} />;
+}
+
+/* ─────────────────── page builder showcase ─────────────────── */
+
+/*
+  The Page builder band's side, the right one - eighth module, and the
+  longest list on the page after the catalogue.
+
+  Ten features, and nine of them are a page: a canvas, a palette, a library
+  of templates, a landing page, a product page, a header and footer, a
+  generated section, a generated layout. So nine of them are drawn as pages
+  - blocks on a board, which is what the builder actually shows you - and
+  the tenth, the Tailwind classes, is drawn as the classes themselves.
+
+  The page already has a working builder demo further down (#builder); this
+  is deliberately the flat version of it, because a band that animates while
+  you read the one below it is two demos fighting.
+*/
+
+/*
+  A page as the builder draws it: a stack of blocks, each with a height and
+  either a tone of its own or a row of columns. `tone` carries whatever
+  classes the block needs, so a dashed drop target is just another tone.
+*/
+function Wireframe({ blocks, className = "" }) {
+  return (
+    <div className={`space-y-2 rounded-xl border border-zinc-200 p-2.5 ${className}`}>
+      {blocks.map((block, index) =>
+        block.cols ? (
+          <span key={index} className="flex gap-2">
+            {block.cols.map((tone, spot) => (
+              <span key={spot} className={`flex-1 rounded-md ${block.h} ${tone}`} />
+            ))}
+          </span>
+        ) : (
+          <span key={index} className={`block rounded-md ${block.h} ${block.tone}`} />
+        ),
+      )}
+    </div>
+  );
+}
+
+/* The canvas, with the palette beside it and a block mid-drop. */
+function PreviewBuilderCanvas() {
+  return (
+    <div className="flex gap-2.5">
+      <div className="w-12 shrink-0 space-y-2 rounded-xl border border-zinc-200 p-2">
+        {BUILDER_CATEGORIES.slice(0, 4).map((category) => {
+          const Icon = category.icon;
+
+          return (
+            <span
+              key={category.key}
+              className="flex h-7 items-center justify-center rounded-md bg-zinc-100 text-zinc-500">
+              <Icon size={13} />
+            </span>
+          );
+        })}
+      </div>
+
+      <Wireframe
+        className="min-w-0 flex-1"
+        blocks={[
+          { h: "h-10", tone: "bg-emerald-100" },
+          { h: "h-5", cols: ["bg-zinc-100", "bg-zinc-100"] },
+          { h: "h-6", tone: "border border-dashed border-emerald-400 bg-emerald-50" },
+          { h: "h-8", tone: "bg-sky-100" },
+          { h: "h-4", tone: "bg-zinc-100" },
+        ]}
+      />
+    </div>
+  );
+}
+
+/* The palette itself: the elements, as many as fit, and more behind the plus. */
+function PreviewElements() {
+  const icons = [
+    LayoutTemplate,
+    FileText,
+    ImageIcon,
+    Store,
+    Megaphone,
+    Star,
+    Percent,
+    Tag,
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-2.5">
+      {icons.map((Icon, index) => (
+        <span
+          key={index}
+          className="flex aspect-square items-center justify-center rounded-xl border border-zinc-200 text-zinc-500">
+          <Icon size={16} />
+        </span>
+      ))}
+      <span className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-zinc-300 text-zinc-300">
+        <Plus size={16} />
+      </span>
+    </div>
+  );
+}
+
+/* The library: four templates, the first one picked. */
+function PreviewTemplates() {
+  const templates = [
+    { key: "a", blocks: ["h-5 bg-emerald-100", "h-2 bg-zinc-100", "h-3 bg-zinc-100"] },
+    { key: "b", blocks: ["h-3 bg-sky-100", "h-5 bg-zinc-100", "h-2 bg-zinc-100"] },
+    { key: "c", blocks: ["h-2 bg-amber-100", "h-3 bg-zinc-100", "h-5 bg-zinc-100"] },
+    { key: "d", blocks: ["h-4 bg-rose-100", "h-4 bg-zinc-100", "h-2 bg-zinc-100"] },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      {templates.map((template, index) => (
+        <div
+          key={template.key}
+          className={`space-y-1.5 rounded-lg border p-2 ${
+            index ? "border-zinc-200" : "border-emerald-500 ring-2 ring-emerald-100"
+          }`}>
+          {template.blocks.map((block) => (
+            <span key={block} className={`block rounded ${block}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PreviewAiTemplate() {
+  return <AiSample sample="template" />;
+}
+
+/* A landing page end to end, which is why this one is the tall stack. */
+function PreviewLandingPage() {
+  return (
+    <Wireframe
+      blocks={[
+        { h: "h-12", tone: "bg-emerald-100" },
+        { h: "h-3", tone: "bg-zinc-100" },
+        { h: "h-7", cols: ["bg-zinc-100", "bg-zinc-100", "bg-zinc-100"] },
+        { h: "h-9", tone: "bg-sky-100" },
+        { h: "h-5", tone: "bg-zinc-200" },
+      ]}
+    />
+  );
+}
+
+/* The product page template: gallery, price, the button that matters. */
+function PreviewProductTemplate() {
+  return (
+    <div className="space-y-2.5 rounded-xl border border-zinc-200 p-2.5">
+      <div className="flex gap-2.5">
+        <span className="size-16 shrink-0 rounded-md bg-emerald-100" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Line w="w-20" h="h-1.5" />
+          <Line w="w-12" h="h-2" tone="bg-zinc-300" />
+          <span className="block h-5 w-16 rounded-md bg-zinc-900" />
+        </div>
+      </div>
+      <span className="block h-3 rounded-md bg-zinc-100" />
+      <div className="flex gap-2">
+        {["a", "b", "c"].map((spot) => (
+          <span key={spot} className="h-8 flex-1 rounded-md bg-zinc-100" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Header and footer are the two blocks you edit once for every page. */
+function PreviewHeaderFooter() {
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500 bg-emerald-50/40 px-3 py-2.5 ring-2 ring-emerald-100">
+        <span className="size-6 shrink-0 rounded-md bg-emerald-600" />
+        <span className="flex min-w-0 flex-1 gap-2">
+          <Line w="w-8" h="h-1.5" tone="bg-emerald-200" />
+          <Line w="w-10" h="h-1.5" tone="bg-emerald-200" />
+          <Line w="w-6" h="h-1.5" tone="bg-emerald-200" />
+        </span>
+        <Store size={13} className="shrink-0 text-emerald-600" />
+      </div>
+
+      <div className="space-y-2 rounded-xl border border-dashed border-zinc-200 p-3">
+        <span className="block h-3 rounded-md bg-zinc-100" />
+        <span className="block h-8 rounded-md bg-zinc-100" />
+      </div>
+
+      <div className="rounded-xl border border-emerald-500 bg-emerald-50/40 p-3 ring-2 ring-emerald-100">
+        <div className="flex gap-3">
+          {["a", "b", "c"].map((column) => (
+            <div key={column} className="flex-1 space-y-1.5">
+              <Line w="w-full" h="h-1.5" tone="bg-emerald-200" />
+              <Line w="w-2/3" h="h-1.5" tone="bg-emerald-100" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/*
+  The one feature that is not a page: the classes the builder writes as you
+  drag. Tailwind utilities are code rather than copy, so they are the same
+  four strings under either locale - and showing them is the whole claim.
+*/
+function PreviewTailwind() {
+  const classes = ["rounded-xl", "bg-emerald-600", "px-6", "py-3"];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-center rounded-xl border border-zinc-200 p-4">
+        <span className="rounded-xl bg-emerald-600 px-6 py-3">
+          <Line w="w-10" h="h-1.5" tone="bg-emerald-200" />
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 rounded-xl border border-zinc-200 p-3">
+        {classes.map((name) => (
+          <span
+            key={name}
+            className="rounded-md bg-zinc-100 px-1.5 py-1 font-mono text-[10px] text-zinc-600">
+            {name}
+          </span>
+        ))}
+        <span className="flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-1 text-[10px] font-semibold text-emerald-700">
+          <Code size={10} />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/*
+  A described section and the blocks it came back as - the same prompt and
+  the same block list the builder demo further down uses, so the two agree.
+*/
+function PreviewAiSection() {
+  const { t, tList } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <p className="rounded-lg bg-zinc-100 px-3 py-2 text-[11px] leading-relaxed text-zinc-500">
+        {t("landing.builder.ai.prompt")}
+      </p>
+
+      <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+        <span className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-emerald-700 uppercase">
+          <Sparkles size={11} />
+          {t("landing.builder.ai.note")}
+        </span>
+        {tList("landing.builder.ai.blocks").map((block) => (
+          <span
+            key={block}
+            className="block truncate rounded-md bg-white px-2 py-1.5 text-[10px] font-medium text-zinc-700 ring-1 ring-emerald-100">
+            {block}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Three layouts offered for the same page, and the one taken. */
+function PreviewLayoutGen() {
+  const layouts = [
+    ["h-6 bg-emerald-100", "h-3 bg-zinc-100", "h-8 bg-zinc-100", "h-2 bg-zinc-100"],
+    ["h-3 bg-sky-100", "h-8 bg-zinc-100", "h-3 bg-zinc-100", "h-4 bg-zinc-100"],
+    ["h-8 bg-amber-100", "h-2 bg-zinc-100", "h-4 bg-zinc-100", "h-4 bg-zinc-100"],
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Sparkles size={12} className="shrink-0 text-emerald-600" />
+        <Line w="w-24" h="h-1.5" />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5">
+        {layouts.map((blocks, index) => (
+          <div
+            key={index}
+            className={`space-y-1.5 rounded-lg border p-2 ${
+              index ? "border-zinc-200" : "border-emerald-500 ring-2 ring-emerald-100"
+            }`}>
+            {blocks.map((block) => (
+              <span key={block} className={`block rounded ${block}`} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.builder.items`. */
+const BUILDER_PREVIEWS = [
+  PreviewBuilderCanvas,
+  PreviewElements,
+  PreviewTemplates,
+  PreviewAiTemplate,
+  PreviewLandingPage,
+  PreviewProductTemplate,
+  PreviewHeaderFooter,
+  PreviewTailwind,
+  PreviewAiSection,
+  PreviewLayoutGen,
+];
+
+function BuilderBandShowcase(props) {
+  return <ShowcaseWindow {...props} previews={BUILDER_PREVIEWS} />;
+}
+
+/* ─────────────────── payments showcase ─────────────────── */
+
+/*
+  The Payments band's side, the left one - eleventh module.
+
+  Here the feature names are the brands, and the tab strip prints all eight
+  of them at once, so nothing a visitor is scanning for ("do they take
+  bKash?") moves behind a click. What the panel adds is the thing the band
+  claims: each one is a settings screen in the dashboard, not a plugin - a
+  switch, the credentials it needs, and the method sitting in checkout.
+
+  The brand's colour and the group it belongs to come from PAYMENT_GROUPS,
+  which already holds both, so a wallet shows a wallet's fields and the two
+  offline methods show instructions instead of keys.
+*/
+
+/* The module lists its methods in this order; the groups hold the colours. */
+const PAYMENT_ORDER = ["cod", "bkash", "nagad", "rocket", "bank", "paystation", "sslcommerz", "aamarpay"];
+
+function paymentMeta(key) {
+  for (const group of PAYMENT_GROUPS) {
+    const hit = group.items.find((item) => item.key === key);
+    if (hit) return { ...hit, icon: group.icon, group: group.key };
+  }
+
+  return { key, accent: "text-zinc-700", ring: "ring-zinc-200", icon: Wallet, group: "offline" };
+}
+
+function PaymentSetting({ methodKey }) {
+  const { t } = useI18n();
+  const meta = paymentMeta(methodKey);
+  const Icon = meta.icon;
+  const offline = meta.group === "offline";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span
+          className={`flex size-11 shrink-0 items-center justify-center rounded-xl bg-white ring-1 ${meta.ring} ${meta.accent}`}>
+          <Icon size={17} />
+        </span>
+        <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${meta.accent}`}>
+          {t(`landing.payments.items.${methodKey}.name`)}
+        </span>
+        <Toggle on />
+      </div>
+
+      {/*
+        A gateway and a wallet are configured with keys; cash and a bank
+        slip are configured with words, so that panel shows a note instead.
+      */}
+      {offline ? (
+        <div className="space-y-2 rounded-xl border border-zinc-200 p-3">
+          <Line w="w-28" h="h-1.5" />
+          <Line w="w-20" h="h-1.5" tone="bg-zinc-100" />
+          <Line w="w-24" h="h-1.5" tone="bg-zinc-100" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-zinc-200 px-3 py-2">
+            <Line w="w-8" h="h-1.5" />
+            <span className="mt-2 block">
+              <Line w="w-16" h="h-1.5" tone="bg-zinc-300" />
+            </span>
+          </div>
+          <div className="rounded-lg border border-zinc-200 px-3 py-2">
+            <Line w="w-10" h="h-1.5" />
+            <span className="mt-2 block">
+              <Line w="w-12" h="h-1.5" tone="bg-zinc-300" />
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* The same method, as the customer meets it at checkout. */}
+      <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500 bg-emerald-50/50 px-3 py-3">
+        <span className="flex size-4 shrink-0 items-center justify-center rounded-full border border-emerald-600 bg-emerald-600">
+          <span className="size-1.5 rounded-full bg-white" />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-zinc-900">
+          {t(`landing.payments.items.${methodKey}.name`)}
+        </span>
+        <ShieldCheck size={13} className="shrink-0 text-emerald-600" />
+      </div>
+    </div>
+  );
+}
+
+/* One preview per method, named rather than inlined so React has a name. */
+function paymentPreview(key) {
+  function PaymentPreview() {
+    return <PaymentSetting methodKey={key} />;
+  }
+
+  return PaymentPreview;
+}
+
+/* Index by index, the order of `landing.modules.groups.payments.items`. */
+const PAYMENTS_PREVIEWS = PAYMENT_ORDER.map(paymentPreview);
+
+function PaymentsShowcase(props) {
+  return <ShowcaseWindow {...props} previews={PAYMENTS_PREVIEWS} />;
+}
+
+/* ─────────────────── integrations showcase ─────────────────── */
+
+/*
+  The Integrations band's side, the right one - the twelfth and last module.
+
+  Same reasoning as payments: the names are the products, the tab strip
+  keeps all eight of them visible, and the panel shows what the band claims
+  - that each one is an ID you paste and a switch you flip, not a code edit.
+  The id is greeked, because a real-looking pixel id in a product shot is a
+  number somebody will try to use.
+
+  The last two are not pastable ids, so they are not drawn as one: custom
+  extensions get a slot you install into, and the courier APIs get the four
+  couriers the page already names, each with its own connection.
+*/
+
+/* A tracking id pasted into the dashboard, and live on the storefront. */
+function IntegrationSetting({ icon: Icon, name }) {
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-900">
+          <Icon size={16} className="text-emerald-400" />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900">
+          {t(`landing.integrations.items.${name}.name`)}
+        </span>
+        <Toggle on />
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 px-3 py-2.5">
+        <Line w="w-10" h="h-1.5" />
+        <div className="mt-2.5 flex items-center gap-2 rounded-md bg-zinc-50 px-2 py-1.5">
+          <Line w="w-24" h="h-1.5" tone="bg-zinc-300" />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/50 px-3 py-2.5">
+        <span className="cs-pulse size-2 shrink-0 rounded-full bg-emerald-500" />
+        <Line w="w-20" h="h-1.5" tone="bg-emerald-200" />
+      </div>
+    </div>
+  );
+}
+
+/* The five pasteable ids, in the module's own order. */
+const INTEGRATION_PREVIEW_ICONS = {
+  facebook: Megaphone,
+  tiktok: Video,
+  analytics: ChartPie,
+  maps: MapIcon,
+  clarity: Eye,
+  claude: Sparkles,
+};
+
+function integrationPreview(key) {
+  function IntegrationPreview() {
+    return <IntegrationSetting icon={INTEGRATION_PREVIEW_ICONS[key]} name={key} />;
+  }
+
+  return IntegrationPreview;
+}
+
+/* An extension dropped into the slot, and two more waiting. */
+function PreviewExtensions() {
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-900">
+          <Puzzle size={16} className="text-emerald-400" />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900">
+          {t("landing.integrations.items.extensions.name")}
+        </span>
+        <Toggle on />
+      </div>
+
+      {[
+        { w: "w-24", on: true },
+        { w: "w-16", on: false },
+      ].map((row) => (
+        <div
+          key={row.w}
+          className="flex items-center gap-2.5 rounded-lg border border-zinc-200 px-3 py-2.5">
+          <Plug size={13} className={`shrink-0 ${row.on ? "text-emerald-600" : "text-zinc-300"}`} />
+          <span className="min-w-0 flex-1">
+            <Line w={row.w} h="h-1.5" />
+          </span>
+          <Toggle on={row.on} />
+        </div>
+      ))}
+
+      <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 py-3 text-zinc-300">
+        <Plus size={14} />
+      </div>
+    </div>
+  );
+}
+
+/* The courier APIs: the four the page names, three of them wired up. */
+function PreviewCourierApis() {
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-900">
+          <Antenna size={16} className="text-emerald-400" />
+        </span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <Line w="w-20" h="h-1.5" />
+          <Line w="w-12" h="h-1.5" tone="bg-zinc-100" />
+        </div>
+      </div>
+
+      <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 px-3">
+        {COURIERS.map((courier, index) => {
+          const Icon = courier.icon;
+          const live = index < 3;
+
+          return (
+            <div key={courier.key} className="flex items-center gap-2.5 py-2.5">
+              <Icon size={13} className={`shrink-0 ${live ? "text-emerald-600" : "text-zinc-300"}`} />
+              <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-zinc-900">
+                {t(`landing.couriers.items.${courier.key}.name`)}
+              </span>
+              <span
+                className={`size-2 shrink-0 rounded-full ${live ? "bg-emerald-500" : "bg-zinc-200"}`}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Index by index, the order of `landing.modules.groups.integrations.items`. */
+const INTEGRATIONS_PREVIEWS = [
+  ...["facebook", "tiktok", "analytics", "maps", "clarity", "claude"].map(integrationPreview),
+  PreviewExtensions,
+  PreviewCourierApis,
+];
+
+function IntegrationsShowcase(props) {
+  return <ShowcaseWindow {...props} previews={INTEGRATIONS_PREVIEWS} />;
+}
+
+/* Which bands trade their feature grid for a window of their own. */
+const BAND_VISUALS = {
+  catalog: CatalogueShowcase,
+  orders: OrdersShowcase,
+  inventory: StockShowcase,
+  insights: InsightsShowcase,
+  accounting: AccountingShowcase,
+  delivery: DeliveryShowcase,
+  people: PeopleShowcase,
+  content: ContentShowcase,
+  support: SupportShowcase,
+  builder: BuilderBandShowcase,
+  payments: PaymentsShowcase,
+  integrations: IntegrationsShowcase,
+};
+
+/*
+  A module with three features or fewer keeps one column, so its handful of
+  cards read as a deliberate short list rather than as a two-column grid
+  with the right half missing.
+*/
+function FeatureGrid({ group, needle, shaded }) {
+  return (
+    <ul
+      className={`grid grid-cols-1 gap-2.5 ${group.hits.length > 3 ? "sm:grid-cols-2" : ""}`}>
+      {group.hits.map((item) => (
+        <li
+          key={item}
+          className={`flex items-start gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm text-zinc-800 ${
+            shaded ? "bg-white" : "bg-zinc-50"
+          }`}>
+          <Check size={14} className="mt-0.5 shrink-0 text-emerald-600" />
+          <span>
+            <Highlight text={item} needle={group.matchedName ? "" : needle} />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+
 /* ─────────────────────── module bands ─────────────────────── */
 
 /*
@@ -1029,6 +3375,7 @@ function ModuleSections() {
       {/* ── One band per module ── */}
       {found.map((group, index) => {
         const Icon = group.icon;
+        const Visual = BAND_VISUALS[group.key];
         /*
           Odd bands shade and flip. `lg:order-2` moves the copy across only
           where there are two columns to move it between - stacked on a
@@ -1082,27 +3429,17 @@ function ModuleSections() {
               </div>
 
               {/*
-                A module with three features or fewer keeps one column, so
-                its handful of cards read as a deliberate short list rather
-                than as a two-column grid with the right half missing.
+                Every module now trades its grid for a window you can click
+                through. `BAND_VISUALS` is still the switch, so a band drops
+                back to `FeatureGrid` by leaving that map.
               */}
-              <ul
-                className={`grid grid-cols-1 gap-2.5 ${
-                  group.hits.length > 3 ? "sm:grid-cols-2" : ""
-                } ${flipped ? "lg:order-1" : ""}`}>
-                {group.hits.map((item) => (
-                  <li
-                    key={item}
-                    className={`flex items-start gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm text-zinc-800 ${
-                      flipped ? "bg-white" : "bg-zinc-50"
-                    }`}>
-                    <Check size={14} className="mt-0.5 shrink-0 text-emerald-600" />
-                    <span>
-                      <Highlight text={item} needle={group.matchedName ? "" : needle} />
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className={flipped ? "lg:order-1" : undefined}>
+                {Visual ? (
+                  <Visual group={group} needle={needle} />
+                ) : (
+                  <FeatureGrid group={group} needle={needle} shaded={flipped} />
+                )}
+              </div>
 
             </div>
           </section>
