@@ -175,6 +175,9 @@
         "insights": {
           "name": "Insights",
           "kicker": "Reporting",
+          "previewAlt": "The Combo Store activity screen, listing each store event with its details, user, device, city and time.",
+          "previewAltDashboard": "The Combo Store dashboard, showing sales, orders and profit with a sales chart, a cost breakdown, and the top customers and products.",
+          "previewOpen": "View the insights screen full size",
           "desc": "The numbers you actually act on — what sold, who is buying again, and what your staff changed — without exporting anything to a spreadsheet.",
           "items": [
             "Stats dashboard",

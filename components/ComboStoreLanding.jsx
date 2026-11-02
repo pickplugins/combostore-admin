@@ -2117,10 +2117,22 @@ const INSIGHTS_PREVIEWS = [
   PreviewTopSelling,
 ];
 
+/* The wide image goes first, for the reason given at DELIVERY_SLIDES. */
+const INSIGHTS_SLIDES = [
+  { src: "/landing-page/combostore-activities.png", width: 1920, height: 977 },
+  {
+    src: "/landing-page/combostore-dashboard-redacted.png",
+    width: 1920,
+    height: 1930,
+    alt: "landing.modules.groups.insights.previewAltDashboard",
+  },
+];
+
 function InsightsShowcase(props) {
   return (
-    <ShowcaseWindow
+    <ScreenshotShowcase
       {...props}
+      slides={INSIGHTS_SLIDES}
       previews={INSIGHTS_PREVIEWS}
       chrome="landing.demo.tabs.insights"
     />
