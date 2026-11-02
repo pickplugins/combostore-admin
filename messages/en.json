@@ -118,6 +118,10 @@
       "body": "No per-module licence and nothing to switch on later. Every module below is included in every plan — read down them, or search the whole platform at once.",
       "countLabel": "features",
       "countLabelOne": "feature",
+      "previewClose": "Close preview",
+      "previewPrev": "Previous image",
+      "previewNext": "Next image",
+      "previewImage": "Image",
       "search": {
         "label": "Search features",
         "placeholder": "Search features — refunds, couriers, pixels…",
@@ -130,6 +134,8 @@
         "catalog": {
           "name": "Catalogue",
           "kicker": "Products",
+          "previewAlt": "The Combo Store products screen, listing products with their categories, stock, price and trade price.",
+          "previewOpen": "View the products screen full size",
           "desc": "Build the catalogue once. Variants, brands, tags and reviews all live beside the product, and AI drafts the description while you are still uploading photos.",
           "items": [
             "Product management",
@@ -146,6 +152,8 @@
         "orders": {
           "name": "Orders",
           "kicker": "Sales",
+          "previewAlt": "The Combo Store orders screen, listing orders with their customer, status, totals, profit and payment.",
+          "previewOpen": "View the orders screen full size",
           "desc": "Every order from placed to delivered — including the ones that never finished checkout, which is usually where the next day's revenue is hiding.",
           "items": [
             "Order management",
@@ -178,6 +186,8 @@
         "accounting": {
           "name": "Accounting",
           "kicker": "Money",
+          "previewAlt": "The Combo Store purchases screen, listing supplier purchases with their status, payment, dates and totals.",
+          "previewOpen": "View the purchases screen full size",
           "desc": "Purchases, supplier invoices and running costs sit in the same place as the sales, so margin is a number you can read rather than a number you work out.",
           "items": [
             "Accounting",
@@ -188,6 +198,9 @@
         "delivery": {
           "name": "Delivery",
           "kicker": "Logistics",
+          "previewAlt": "The Combo Store shipping zone screen, editing a zone for Bangladesh with its countries and shipping methods.",
+          "previewAltCouriers": "The Combo Store courier settings, listing each courier company with its own switch and options.",
+          "previewOpen": "View the delivery screen full size",
           "desc": "Your own riders and the courier companies side by side, with zones and rates that decide what checkout charges.",
           "items": [
             "Delivery management",
@@ -214,6 +227,10 @@
         "builder": {
           "name": "Page builder",
           "kicker": "Design",
+          "previewAlt": "The Combo Store page builder, editing a store home page with the layers panel on the left and the style options on the right.",
+          "previewAltElements": "The Combo Store page builder, editing a product page template with the product elements on the left and the add-to-cart button's options on the right.",
+          "previewAltTemplates": "The Combo Store page builder, showing the installed templates on the left beside a store home page built from one.",
+          "previewOpen": "View the page builder full size",
           "desc": "Build landing pages, product templates, headers and footers by dragging blocks. The Tailwind classes are generated with them, so nothing drifts from the rest of the site.",
           "items": [
             "Page builder",
@@ -231,6 +248,8 @@
         "content": {
           "name": "Content",
           "kicker": "Blog & media",
+          "previewAlt": "The Combo Store posts screen, listing blog posts with their featured image, category and status.",
+          "previewOpen": "View the posts screen full size",
           "desc": "A blog for the SEO traffic you are not paying for, a media library for everything you have shot, and an assistant that writes the first draft.",
           "items": [
             "Blog",
@@ -249,6 +268,8 @@
         "payments": {
           "name": "Payments",
           "kicker": "Checkout",
+          "previewAlt": "The Combo Store payment gateway settings, listing each payment method with its own switch and options.",
+          "previewOpen": "View the payment settings full size",
           "desc": "Every method your customers already use, configured in the dashboard — no plugin stack to license, wire up and keep in sync.",
           "items": [
             "Cash on Delivery",
@@ -264,6 +285,8 @@
         "integrations": {
           "name": "Integrations",
           "kicker": "Tracking & APIs",
+          "previewAlt": "The Combo Store API keys settings, listing each integration with its own switch and options, with the Facebook Pixel panel open.",
+          "previewOpen": "View the integration settings full size",
           "desc": "Pixels, analytics and maps are settings rather than code edits — and when something is missing, an extension adds it.",
           "items": [
             "Facebook Pixel",
@@ -566,7 +589,7 @@
           "priceYear": "Custom",
           "periodYear": "",
           "noteYear": "Scoped to your catalogue and volume",
-          "cta": "Talk to sales",
+          "cta": "Chat on WhatsApp",
           "points": {
             "everything": "Everything in Business",
             "warehouses": "Multi-warehouse stock and per-outlet reporting",
@@ -617,7 +640,7 @@
       "title": "Your shop, live in days — not months",
       "body": "Point it at a domain and deploy. We will walk you through setup, migration and payment configuration.",
       "primary": "Deploy on Vercel",
-      "secondary": "Talk to sales"
+      "secondary": "Chat on WhatsApp"
     },
     "mock": {
       "url": "yourstore.com",

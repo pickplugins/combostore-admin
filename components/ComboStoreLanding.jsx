@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Hind_Siliguri } from "next/font/google";
+import Image from "next/image";
 import {
   ArrowRight,
   Banknote,
@@ -12,6 +13,8 @@ import {
   ChartPie,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Code,
   CreditCard,
@@ -25,6 +28,7 @@ import {
   LayoutTemplate,
   MapPin,
   Map as MapIcon,
+  Maximize2,
   Megaphone,
   Menu,
   Minus,
@@ -273,6 +277,22 @@ const PARTNER_KEYS = [
   "landing.integrations.items.analytics.name",
 ];
 
+const WHATSAPP_URL = "https://wa.me/8801537034053";
+
+/* lucide ships no brand marks, so the WhatsApp glyph is drawn here. */
+function WhatsAppIcon({ size = 16 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true">
+      <path d="M17.47 14.38c-.3-.15-1.75-.86-2.03-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.69.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35zM12.05 21.8h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88zM20.46 3.49A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.09.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z" />
+    </svg>
+  );
+}
+
 const PLANS = [
   {
     key: "starter",
@@ -287,7 +307,8 @@ const PLANS = [
   },
   {
     key: "enterprise",
-    href: "#contact",
+    href: WHATSAPP_URL,
+    whatsapp: true,
     points: ["everything", "warehouses", "integrations", "migration", "sla", "support"],
   },
 ];
@@ -463,9 +484,8 @@ function SectionLabel({ children, tone = "light" }) {
 function Logo({ tone = "light" }) {
   return (
     <div
-      className={`flex items-center gap-2.5 text-[17px] font-semibold tracking-tight ${
-        tone === "dark" ? "text-white" : "text-zinc-900"
-      }`}>
+      className={`flex items-center gap-2.5 text-[17px] font-semibold tracking-tight ${tone === "dark" ? "text-white" : "text-zinc-900"
+        }`}>
       <span className="flex size-8 items-center justify-center rounded-xl bg-emerald-600 text-[13px] font-bold text-white">
         CS
       </span>
@@ -497,11 +517,10 @@ function LanguageSwitch({ className = "" }) {
             onClick={() => setLocale(item.code)}
             aria-pressed={active}
             title={item.label}
-            className={`!rounded-md !border-0 !px-2.5 !py-1 !text-xs !font-medium !shadow-none transition-colors ${
-              active
-                ? "!bg-white !text-zinc-900 !shadow-sm"
-                : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
-            }`}>
+            className={`!rounded-md !border-0 !px-2.5 !py-1 !text-xs !font-medium !shadow-none transition-colors ${active
+              ? "!bg-white !text-zinc-900 !shadow-sm"
+              : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
+              }`}>
             {item.short}
           </button>
         );
@@ -713,9 +732,8 @@ function DemoInsights() {
           <span
             key={index}
             style={{ height: `${height}%` }}
-            className={`flex-1 rounded-sm ${
-              index === WEEK_BARS.length - 1 ? "bg-emerald-500" : "bg-emerald-200"
-            }`}
+            className={`flex-1 rounded-sm ${index === WEEK_BARS.length - 1 ? "bg-emerald-500" : "bg-emerald-200"
+              }`}
           />
         ))}
       </div>
@@ -857,11 +875,10 @@ function AdminDemo() {
                 aria-controls={panelId(tab.key)}
                 tabIndex={selected ? 0 : -1}
                 onClick={() => pick(tab.key)}
-                className={`inline-flex shrink-0 items-center gap-1.5 !rounded-lg !border-0 !px-2.5 !py-1.5 !text-[11px] !font-medium !shadow-none transition-colors ${
-                  selected
-                    ? "!bg-zinc-900 !text-white"
-                    : "!bg-transparent !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-800"
-                }`}>
+                className={`inline-flex shrink-0 items-center gap-1.5 !rounded-lg !border-0 !px-2.5 !py-1.5 !text-[11px] !font-medium !shadow-none transition-colors ${selected
+                  ? "!bg-zinc-900 !text-white"
+                  : "!bg-transparent !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-800"
+                  }`}>
                 <Icon size={13} />
                 {t(`landing.demo.tabs.${tab.key}`)}
               </button>
@@ -1019,9 +1036,8 @@ function PreviewCategories() {
       {rows.map((row, index) => (
         <div key={index} className={`flex items-center gap-3 ${row.indent}`}>
           <span
-            className={`flex size-4 shrink-0 items-center justify-center rounded border ${
-              row.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
-            }`}>
+            className={`flex size-4 shrink-0 items-center justify-center rounded border ${row.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
+              }`}>
             {row.on && <Check size={11} className="text-white" />}
           </span>
           <Line w={row.w} />
@@ -1044,9 +1060,8 @@ function PreviewTags() {
         {widths.map((width, index) => (
           <span
             key={width}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 ${
-              index < 3 ? "bg-emerald-50" : "bg-zinc-100"
-            }`}>
+            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 ${index < 3 ? "bg-emerald-50" : "bg-zinc-100"
+              }`}>
             <Tag size={10} className={index < 3 ? "text-emerald-600" : "text-zinc-400"} />
             <Line w={width} h="h-1.5" tone={index < 3 ? "bg-emerald-200" : "bg-zinc-300"} />
           </span>
@@ -1311,35 +1326,34 @@ function ShowcaseWindow({ group, needle, previews, chrome }) {
 
         {/* The features, as the window's own navigation */}
         {!single && (
-        <div
-          role="tablist"
-          aria-orientation="vertical"
-          aria-label={group.name}
-          onKeyDown={onKeyDown}
-          className="flex min-w-0 gap-1 overflow-x-auto border-b border-zinc-200 p-2 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r">
-          {panels.map((panel) => {
-            const selected = panel.item === current.item;
+          <div
+            role="tablist"
+            aria-orientation="vertical"
+            aria-label={group.name}
+            onKeyDown={onKeyDown}
+            className="flex min-w-0 gap-1 overflow-x-auto border-b border-zinc-200 p-2 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r">
+            {panels.map((panel) => {
+              const selected = panel.item === current.item;
 
-            return (
-              <button
-                key={panel.item}
-                id={tabId(panel.item)}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                aria-controls={panelId(panel.item)}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => setActive(panel.item)}
-                className={`shrink-0 !rounded-lg !border-0 !px-2.5 !py-2 !text-left !text-[11px] !font-medium !shadow-none transition-colors sm:w-full ${
-                  selected
+              return (
+                <button
+                  key={panel.item}
+                  id={tabId(panel.item)}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  aria-controls={panelId(panel.item)}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => setActive(panel.item)}
+                  className={`shrink-0 !rounded-lg !border-0 !px-2.5 !py-2 !text-left !text-[11px] !font-medium !shadow-none transition-colors sm:w-full ${selected
                     ? "!bg-zinc-900 !text-white"
                     : "!bg-transparent !text-zinc-600 hover:!bg-zinc-100 hover:!text-zinc-900"
-                }`}>
-                <Highlight text={panel.item} needle={group.matchedName ? "" : needle} />
-              </button>
-            );
-          })}
-        </div>
+                    }`}>
+                  <Highlight text={panel.item} needle={group.matchedName ? "" : needle} />
+                </button>
+              );
+            })}
+          </div>
         )}
 
         {/*
@@ -1379,10 +1393,206 @@ function ShowcaseWindow({ group, needle, previews, chrome }) {
   );
 }
 
+/*
+  Real admin screens rather than an illustration, for the bands that have them.
+  `slides` is a list of { src, width, height, alt? }; one entry shows no controls.
+  `previews` and `chrome` still go to the window, because a search opens it:
+  that is what narrows and highlights the feature names. The hidden list keeps
+  those names in the HTML while the screenshot is showing.
+
+  At column width the screenshot's text is too small to read, so a click opens
+  it in a native <dialog>, which brings Esc, the focus trap and the layer above
+  the sticky nav. That copy is the untouched PNG, fetched only on first open:
+  text does not survive the optimiser's quality setting. It is fitted to the
+  width and scrolls, because fitting a tall page to the height shrinks it again.
+*/
+/* The slider's two arrows, drawn once in the band and once in the modal. */
+const SLIDE_STEPS = [
+  { step: -1, icon: ChevronLeft, label: "landing.modules.previewPrev", side: "left" },
+  { step: 1, icon: ChevronRight, label: "landing.modules.previewNext", side: "right" },
+];
+
+function ScreenshotShowcase({ slides, ...windowProps }) {
+  const { t, n } = useI18n();
+  const { group, needle } = windowProps;
+  const copy = `landing.modules.groups.${group.key}`;
+  const dialog = useRef(null);
+  const [zoomed, setZoomed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [index, setIndex] = useState(0);
+
+  const slide = slides[index];
+  const many = slides.length > 1;
+  const alt = t(slide.alt || `${copy}.previewAlt`);
+
+  /* A dialog does not stop the page behind it scrolling. */
+  useEffect(() => {
+    if (!zoomed) return undefined;
+
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [zoomed]);
+
+  const open = () => {
+    setLoaded(true);
+    setZoomed(true);
+    dialog.current?.showModal();
+  };
+
+  const close = () => dialog.current?.close();
+
+  /* A taller image must not open halfway down because the last one was scrolled. */
+  const go = (step) => {
+    setIndex((current) => (current + step + slides.length) % slides.length);
+    if (dialog.current) dialog.current.scrollTop = 0;
+  };
+
+  const onDialogKeyDown = (event) => {
+    if (!many) return;
+    if (event.key === "ArrowLeft") go(-1);
+    if (event.key === "ArrowRight") go(1);
+  };
+
+  if (needle) return <ShowcaseWindow {...windowProps} />;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl shadow-zinc-900/5">
+      {/*
+        With several images the stage keeps the first one's shape, so the band
+        does not resize as you page through screenshots of different heights.
+      */}
+      <div
+        className="relative"
+        style={many ? { aspectRatio: `${slides[0].width} / ${slides[0].height}` } : undefined}>
+        <button
+          type="button"
+          onClick={open}
+          aria-haspopup="dialog"
+          aria-label={t(`${copy}.previewOpen`)}
+          className="group relative !block h-full !w-full !cursor-zoom-in !rounded-none !border-0 !bg-transparent !p-0 !shadow-none">
+          <Image
+            key={slide.src}
+            src={slide.src}
+            alt={alt}
+            width={slide.width}
+            height={slide.height}
+            sizes="(min-width: 1024px) 520px, 100vw"
+            className={many ? "block size-full object-cover object-top" : "block h-auto w-full"}
+          />
+          <span className="absolute right-3 bottom-3 flex size-8 items-center justify-center rounded-lg bg-zinc-900/80 text-white transition-colors group-hover:bg-emerald-600">
+            <Maximize2 size={14} />
+          </span>
+        </button>
+
+        {many &&
+          SLIDE_STEPS.map(({ step, icon: Icon, label, side }) => (
+            <button
+              key={side}
+              type="button"
+              onClick={() => go(step)}
+              aria-label={t(label)}
+              className={`absolute top-1/2 flex size-8 -translate-y-1/2 items-center justify-center !rounded-full !border-0 !bg-zinc-900/80 !p-0 !text-white !shadow-none hover:!bg-emerald-600 ${side === "left" ? "left-2" : "right-2"
+                }`}>
+              <Icon size={16} />
+            </button>
+          ))}
+      </div>
+
+      {many && (
+        <div className="flex gap-2 overflow-x-auto border-t border-zinc-200 bg-zinc-50 p-2">
+          {slides.map((item, position) => (
+            <button
+              key={item.src}
+              type="button"
+              onClick={() => setIndex(position)}
+              aria-label={`${t("landing.modules.previewImage")} ${n(position + 1)}`}
+              aria-current={position === index ? "true" : undefined}
+              className={`m-0.5 shrink-0 overflow-hidden !rounded-md !border-0 !bg-white !p-0 !shadow-none ring-2 transition-opacity ${position === index ? "ring-emerald-500" : "opacity-60 ring-transparent hover:opacity-100"
+                }`}>
+              <Image
+                src={item.src}
+                alt=""
+                width={item.width}
+                height={item.height}
+                sizes="80px"
+                className="block h-11 w-20 object-cover object-top"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Anything outside the image is backdrop, so a click there closes it. */}
+      <dialog
+        ref={dialog}
+        onClose={() => setZoomed(false)}
+        onClick={close}
+        onKeyDown={onDialogKeyDown}
+        aria-label={alt}
+        className="fixed inset-0 m-0 size-full max-h-none max-w-none overflow-y-auto border-0 bg-transparent p-4 backdrop:bg-zinc-950/90 sm:p-8">
+        <button
+          type="button"
+          onClick={close}
+          aria-label={t("landing.modules.previewClose")}
+          className="fixed top-3 right-6 z-10 flex size-10 items-center justify-center !rounded-full !border-0 !bg-zinc-900/80 !p-0 !text-white !shadow-none hover:!bg-zinc-700">
+          <X size={18} />
+        </button>
+
+        {many && (
+          <>
+            <span className="fixed top-5 left-6 z-10 rounded-full bg-zinc-900/80 px-3 py-1 text-xs font-medium text-white">
+              {n(index + 1)} / {n(slides.length)}
+            </span>
+            {SLIDE_STEPS.map(({ step, icon: Icon, label, side }) => (
+              <button
+                key={side}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  go(step);
+                }}
+                aria-label={t(label)}
+                className={`fixed top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center !rounded-full !border-0 !bg-zinc-900/80 !p-0 !text-white !shadow-none hover:!bg-zinc-700 ${side === "left" ? "left-6" : "right-6"
+                  }`}>
+                <Icon size={22} />
+              </button>
+            ))}
+          </>
+        )}
+
+        {loaded && (
+          // eslint-disable-next-line @next/next/no-img-element -- the original PNG, on purpose.
+          <img
+            key={slide.src}
+            src={slide.src}
+            alt={alt}
+            width={slide.width}
+            height={slide.height}
+            onClick={(event) => event.stopPropagation()}
+            className="mx-auto block h-auto w-full max-w-[1920px] rounded-lg"
+          />
+        )}
+      </dialog>
+
+      <ul className="sr-only">
+        {group.items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function CatalogueShowcase(props) {
   return (
-    <ShowcaseWindow
+    <ScreenshotShowcase
       {...props}
+      slides={[{ src: "/landing-page/combo-store-products.png", width: 1920, height: 1998 }]}
       previews={CATALOGUE_PREVIEWS}
       chrome="landing.demo.tabs.products"
     />
@@ -1448,15 +1658,13 @@ function PreviewOrderDetail() {
         {steps.map((done, index) => (
           <span key={index} className="flex min-w-0 flex-1 items-center gap-1.5 last:flex-none">
             <span
-              className={`size-2.5 shrink-0 rounded-full ${
-                done ? "bg-emerald-500" : "border border-zinc-300 bg-white"
-              }`}
+              className={`size-2.5 shrink-0 rounded-full ${done ? "bg-emerald-500" : "border border-zinc-300 bg-white"
+                }`}
             />
             {index < steps.length - 1 && (
               <span
-                className={`h-0.5 min-w-0 flex-1 rounded-full ${
-                  steps[index + 1] ? "bg-emerald-500" : "bg-zinc-200"
-                }`}
+                className={`h-0.5 min-w-0 flex-1 rounded-full ${steps[index + 1] ? "bg-emerald-500" : "bg-zinc-200"
+                  }`}
               />
             )}
           </span>
@@ -1561,9 +1769,8 @@ function PreviewSubscriptions() {
           {Array.from({ length: cycles }, (_, index) => (
             <span
               key={index}
-              className={`h-6 flex-1 rounded-md ${
-                index < taken ? "bg-sky-500" : "border border-dashed border-zinc-300 bg-zinc-50"
-              }`}
+              className={`h-6 flex-1 rounded-md ${index < taken ? "bg-sky-500" : "border border-dashed border-zinc-300 bg-zinc-50"
+                }`}
             />
           ))}
         </div>
@@ -1582,7 +1789,12 @@ const ORDERS_PREVIEWS = [
 
 function OrdersShowcase(props) {
   return (
-    <ShowcaseWindow {...props} previews={ORDERS_PREVIEWS} chrome="landing.demo.tabs.orders" />
+    <ScreenshotShowcase
+      {...props}
+      slides={[{ src: "/landing-page/combostore-orders.png", width: 1920, height: 1784 }]}
+      previews={ORDERS_PREVIEWS}
+      chrome="landing.demo.tabs.orders"
+    />
   );
 }
 
@@ -1667,9 +1879,8 @@ function PreviewStockHistory() {
           <div key={entry.delta} className="flex gap-2.5">
             <span className="flex flex-col items-center">
               <span
-                className={`size-2 shrink-0 rounded-full ${
-                  index ? "bg-zinc-300" : "bg-emerald-500"
-                }`}
+                className={`size-2 shrink-0 rounded-full ${index ? "bg-zinc-300" : "bg-emerald-500"
+                  }`}
               />
               {!last && <span className="w-px flex-1 bg-zinc-200" />}
             </span>
@@ -1792,9 +2003,8 @@ function PreviewStats() {
           <span
             key={index}
             style={{ height: `${height}%` }}
-            className={`flex-1 rounded-sm ${
-              index === WEEK_BARS.length - 1 ? "bg-emerald-500" : "bg-emerald-200"
-            }`}
+            className={`flex-1 rounded-sm ${index === WEEK_BARS.length - 1 ? "bg-emerald-500" : "bg-emerald-200"
+              }`}
           />
         ))}
       </div>
@@ -1931,9 +2141,8 @@ function InsightsShowcase(props) {
 function Toggle({ on = true }) {
   return (
     <span
-      className={`flex h-4 w-7 shrink-0 items-center rounded-full px-0.5 ${
-        on ? "justify-end bg-emerald-500" : "justify-start bg-zinc-200"
-      }`}>
+      className={`flex h-4 w-7 shrink-0 items-center rounded-full px-0.5 ${on ? "justify-end bg-emerald-500" : "justify-start bg-zinc-200"
+        }`}>
       <span className="size-3 rounded-full bg-white" />
     </span>
   );
@@ -2077,7 +2286,15 @@ function PreviewPurchases() {
 const ACCOUNTING_PREVIEWS = [PreviewLedger, PreviewExpenses, PreviewPurchases];
 
 function AccountingShowcase(props) {
-  return <ShowcaseWindow {...props} previews={ACCOUNTING_PREVIEWS} />;
+  return (
+    <ScreenshotShowcase
+      {...props}
+      slides={[
+        { src: "/landing-page/combostore-accounting-purchases-redacted.png", width: 1920, height: 1371 },
+      ]}
+      previews={ACCOUNTING_PREVIEWS}
+    />
+  );
 }
 
 /* ─────────────────── delivery showcase ─────────────────── */
@@ -2197,13 +2414,11 @@ function PreviewShippingMethods() {
         return (
           <div
             key={method.w}
-            className={`flex items-center gap-3 rounded-xl border px-3 py-3 ${
-              method.on ? "border-emerald-500 bg-emerald-50/50" : "border-zinc-200"
-            }`}>
-            <span
-              className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${
-                method.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
+            className={`flex items-center gap-3 rounded-xl border px-3 py-3 ${method.on ? "border-emerald-500 bg-emerald-50/50" : "border-zinc-200"
               }`}>
+            <span
+              className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${method.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
+                }`}>
               {method.on && <span className="size-1.5 rounded-full bg-white" />}
             </span>
             <Icon size={14} className={method.on ? "text-emerald-600" : "text-zinc-400"} />
@@ -2228,8 +2443,28 @@ const DELIVERY_PREVIEWS = [
   PreviewShippingMethods,
 ];
 
+/*
+  The wide image goes first: the stage takes the first image's shape, so a
+  taller one after it loses its bottom rather than a wide one losing its sides.
+*/
+const DELIVERY_SLIDES = [
+  {
+    src: "/landing-page/combostore-couriers.png",
+    width: 1920,
+    height: 953,
+    alt: "landing.modules.groups.delivery.previewAltCouriers",
+  },
+  { src: "/landing-page/combostore-shipping-zones.png", width: 1920, height: 1479 },
+];
+
 function DeliveryShowcase(props) {
-  return <ShowcaseWindow {...props} previews={DELIVERY_PREVIEWS} />;
+  return (
+    <ScreenshotShowcase
+      {...props}
+      slides={DELIVERY_SLIDES}
+      previews={DELIVERY_PREVIEWS}
+    />
+  );
 }
 
 /* ─────────────────── team showcase ─────────────────── */
@@ -2275,9 +2510,8 @@ function RoleCard({ icon: Icon, tone, chip, count, allowed }) {
         {allowed.map((row) => (
           <div key={row.w} className="flex items-center gap-2.5">
             <span
-              className={`flex size-4 shrink-0 items-center justify-center rounded border ${
-                row.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
-              }`}>
+              className={`flex size-4 shrink-0 items-center justify-center rounded border ${row.on ? "border-emerald-600 bg-emerald-600" : "border-zinc-300"
+                }`}>
               {row.on && <Check size={11} className="text-white" />}
             </span>
             <Line w={row.w} h="h-1.5" tone={row.on ? "bg-zinc-200" : "bg-zinc-100"} />
@@ -2573,7 +2807,13 @@ function PreviewMedia() {
 const CONTENT_PREVIEWS = [PreviewBlog, PreviewAiBlog, PreviewMedia];
 
 function ContentShowcase(props) {
-  return <ShowcaseWindow {...props} previews={CONTENT_PREVIEWS} />;
+  return (
+    <ScreenshotShowcase
+      {...props}
+      slides={[{ src: "/landing-page/combostore-blogs.png", width: 1920, height: 2282 }]}
+      previews={CONTENT_PREVIEWS}
+    />
+  );
 }
 
 /* ─────────────────── support showcase ─────────────────── */
@@ -2745,9 +2985,8 @@ function PreviewTemplates() {
       {templates.map((template, index) => (
         <div
           key={template.key}
-          className={`space-y-1.5 rounded-lg border p-2 ${
-            index ? "border-zinc-200" : "border-emerald-500 ring-2 ring-emerald-100"
-          }`}>
+          className={`space-y-1.5 rounded-lg border p-2 ${index ? "border-zinc-200" : "border-emerald-500 ring-2 ring-emerald-100"
+            }`}>
           {template.blocks.map((block) => (
             <span key={block} className={`block rounded ${block}`} />
           ))}
@@ -2912,9 +3151,8 @@ function PreviewLayoutGen() {
         {layouts.map((blocks, index) => (
           <div
             key={index}
-            className={`space-y-1.5 rounded-lg border p-2 ${
-              index ? "border-zinc-200" : "border-emerald-500 ring-2 ring-emerald-100"
-            }`}>
+            className={`space-y-1.5 rounded-lg border p-2 ${index ? "border-zinc-200" : "border-emerald-500 ring-2 ring-emerald-100"
+              }`}>
             {blocks.map((block) => (
               <span key={block} className={`block rounded ${block}`} />
             ))}
@@ -2939,8 +3177,43 @@ const BUILDER_PREVIEWS = [
   PreviewLayoutGen,
 ];
 
+/*
+  One line per image. The arrows and thumbnails appear from the second line on.
+  `alt` is an optional message key; left out, the band's `previewAlt` is used,
+  so give each new screenshot its own unless it shows the same thing.
+*/
+const BUILDER_SLIDES = [
+  { src: "/landing-page/combostore-page-builder.png", width: 1920, height: 953 },
+  {
+    src: "/landing-page/combostore-page-builder-elements.png",
+    width: 1920,
+    height: 953,
+    alt: "landing.modules.groups.builder.previewAltElements",
+  },
+  {
+    src: "/landing-page/combostore-page-builder-templates.png",
+    width: 1920,
+    height: 953,
+    alt: "landing.modules.groups.builder.previewAltTemplates",
+  },
+  {
+    src: "/landing-page/combostore-page-builder-ai-template-builder.png",
+    width: 1920,
+    height: 953,
+    alt: "landing.modules.groups.builder.previewAltTemplates",
+  },
+
+
+];
+
 function BuilderBandShowcase(props) {
-  return <ShowcaseWindow {...props} previews={BUILDER_PREVIEWS} />;
+  return (
+    <ScreenshotShowcase
+      {...props}
+      slides={BUILDER_SLIDES}
+      previews={BUILDER_PREVIEWS}
+    />
+  );
 }
 
 /* ─────────────────── payments showcase ─────────────────── */
@@ -3044,7 +3317,13 @@ function paymentPreview(key) {
 const PAYMENTS_PREVIEWS = PAYMENT_ORDER.map(paymentPreview);
 
 function PaymentsShowcase(props) {
-  return <ShowcaseWindow {...props} previews={PAYMENTS_PREVIEWS} />;
+  return (
+    <ScreenshotShowcase
+      {...props}
+      slides={[{ src: "/landing-page/combostore-payment-gateways.png", width: 1920, height: 1143 }]}
+      previews={PAYMENTS_PREVIEWS}
+    />
+  );
 }
 
 /* ─────────────────── integrations showcase ─────────────────── */
@@ -3196,7 +3475,15 @@ const INTEGRATIONS_PREVIEWS = [
 ];
 
 function IntegrationsShowcase(props) {
-  return <ShowcaseWindow {...props} previews={INTEGRATIONS_PREVIEWS} />;
+  return (
+    <ScreenshotShowcase
+      {...props}
+      slides={[
+        { src: "/landing-page/combostore-integrations-redacted.png", width: 1920, height: 1408 },
+      ]}
+      previews={INTEGRATIONS_PREVIEWS}
+    />
+  );
 }
 
 /* Which bands trade their feature grid for a window of their own. */
@@ -3227,9 +3514,8 @@ function FeatureGrid({ group, needle, shaded }) {
       {group.hits.map((item) => (
         <li
           key={item}
-          className={`flex items-start gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm text-zinc-800 ${
-            shaded ? "bg-white" : "bg-zinc-50"
-          }`}>
+          className={`flex items-start gap-2.5 rounded-xl border border-zinc-200 px-3.5 py-3 text-sm text-zinc-800 ${shaded ? "bg-white" : "bg-zinc-50"
+            }`}>
           <Check size={14} className="mt-0.5 shrink-0 text-emerald-600" />
           <span>
             <Highlight text={item} needle={group.matchedName ? "" : needle} />
@@ -3389,9 +3675,8 @@ function ModuleSections() {
             key={group.key}
             id={`module-${group.key}`}
             aria-labelledby={`${base}-h-${group.key}`}
-            className={`scroll-mt-16 border-b border-zinc-200 ${
-              flipped ? "bg-zinc-50" : "bg-white"
-            }`}>
+            className={`scroll-mt-16 border-b border-zinc-200 ${flipped ? "bg-zinc-50" : "bg-white"
+              }`}>
             <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-9 px-6 py-14 sm:py-16 lg:grid-cols-2 lg:gap-16">
 
               <div className={flipped ? "lg:order-2" : undefined}>
@@ -3519,11 +3804,10 @@ function BuilderShowcase() {
                 aria-controls={panelId(item.key)}
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setCategory(item.key)}
-                className={`inline-flex items-center gap-1.5 !rounded-lg !border !px-2.5 !py-1.5 !text-xs !font-medium !shadow-none transition-colors ${
-                  selected
-                    ? "!border-emerald-600 !bg-emerald-50 !text-emerald-700"
-                    : "!border-zinc-200 !bg-white !text-zinc-600 hover:!bg-zinc-50"
-                }`}>
+                className={`inline-flex items-center gap-1.5 !rounded-lg !border !px-2.5 !py-1.5 !text-xs !font-medium !shadow-none transition-colors ${selected
+                  ? "!border-emerald-600 !bg-emerald-50 !text-emerald-700"
+                  : "!border-zinc-200 !bg-white !text-zinc-600 hover:!bg-zinc-50"
+                  }`}>
                 <Icon size={13} />
                 {t(`landing.builder.categories.${item.key}.name`)}
               </button>
@@ -3608,9 +3892,8 @@ function BuilderShowcase() {
                   <div
                     key={block}
                     style={state === "done" ? { animationDelay: `${index * 70}ms` } : undefined}
-                    className={`flex items-center gap-2.5 rounded-lg border border-emerald-100 bg-white px-3 py-2 text-xs text-zinc-700 ${
-                      state === "done" ? "cs-rise" : "cs-pulse"
-                    }`}>
+                    className={`flex items-center gap-2.5 rounded-lg border border-emerald-100 bg-white px-3 py-2 text-xs text-zinc-700 ${state === "done" ? "cs-rise" : "cs-pulse"
+                      }`}>
                     <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-[9px] font-bold text-emerald-700">
                       {index + 1}
                     </span>
@@ -3669,11 +3952,10 @@ function PaymentTabs() {
               aria-controls={panelId(item.key)}
               tabIndex={selected ? 0 : -1}
               onClick={() => setGroup(item.key)}
-              className={`inline-flex items-center gap-2 !rounded-lg !border-0 !px-3.5 !py-2 !text-sm !font-medium !shadow-none transition-colors ${
-                selected
-                  ? "!bg-zinc-900 !text-white"
-                  : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
-              }`}>
+              className={`inline-flex items-center gap-2 !rounded-lg !border-0 !px-3.5 !py-2 !text-sm !font-medium !shadow-none transition-colors ${selected
+                ? "!bg-zinc-900 !text-white"
+                : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
+                }`}>
               <Icon size={15} className={selected ? "text-emerald-400" : "text-zinc-400"} />
               {t(`landing.payments.tabs.${item.key}`)}
             </button>
@@ -3692,9 +3974,8 @@ function PaymentTabs() {
             aria-labelledby={tabId(item.key)}
             hidden={!selected}
             tabIndex={selected ? 0 : -1}
-            className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 ${
-              selected ? "cs-rise" : ""
-            }`}>
+            className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 ${selected ? "cs-rise" : ""
+              }`}>
             {item.items.map((method) => (
               <div
                 key={method.key}
@@ -3758,11 +4039,10 @@ function AssistantPanel() {
                 aria-controls={panelId(key)}
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setSample(key)}
-                className={`!rounded-md !border-0 !px-2.5 !py-1 !text-[11px] !font-medium !shadow-none transition-colors ${
-                  selected
-                    ? "!bg-zinc-900 !text-white"
-                    : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
-                }`}>
+                className={`!rounded-md !border-0 !px-2.5 !py-1 !text-[11px] !font-medium !shadow-none transition-colors ${selected
+                  ? "!bg-zinc-900 !text-white"
+                  : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
+                  }`}>
                 {t(`landing.ai.tabs.${key}`)}
               </button>
             );
@@ -3848,11 +4128,10 @@ function PricingCards() {
                 type="button"
                 onClick={() => setYearly(value)}
                 aria-pressed={selected}
-                className={`!rounded-lg !border-0 !px-4 !py-2 !text-sm !font-medium !shadow-none transition-colors ${
-                  selected
-                    ? "!bg-zinc-900 !text-white"
-                    : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
-                }`}>
+                className={`!rounded-lg !border-0 !px-4 !py-2 !text-sm !font-medium !shadow-none transition-colors ${selected
+                  ? "!bg-zinc-900 !text-white"
+                  : "!bg-transparent !text-zinc-500 hover:!text-zinc-800"
+                  }`}>
                 {t(`landing.pricing.billing.${value ? "yearly" : "monthly"}`)}
               </button>
             );
@@ -3880,11 +4159,10 @@ function PricingCards() {
           return (
             <div
               key={plan.key}
-              className={`relative flex flex-col rounded-2xl border p-7 ${
-                featured
-                  ? "border-zinc-950 bg-zinc-950 text-white shadow-xl shadow-zinc-900/20 lg:-my-3 lg:py-10"
-                  : "border-zinc-200 bg-white"
-              }`}>
+              className={`relative flex flex-col rounded-2xl border p-7 ${featured
+                ? "border-zinc-950 bg-zinc-950 text-white shadow-xl shadow-zinc-900/20 lg:-my-3 lg:py-10"
+                : "border-zinc-200 bg-white"
+                }`}>
 
               {featured && (
                 <span className="absolute right-7 top-7 rounded-full border border-emerald-400/25 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
@@ -3894,9 +4172,8 @@ function PricingCards() {
 
               <h3 className={`text-lg font-semibold ${headingType}`}>{t(`${prefix}.name`)}</h3>
               <p
-                className={`mt-1.5 max-w-[15rem] text-sm leading-relaxed ${
-                  featured ? "text-zinc-400" : "text-zinc-600"
-                }`}>
+                className={`mt-1.5 max-w-[15rem] text-sm leading-relaxed ${featured ? "text-zinc-400" : "text-zinc-600"
+                  }`}>
                 {t(`${prefix}.tagline`)}
               </p>
 
@@ -3925,34 +4202,32 @@ function PricingCards() {
 
               <a
                 href={plan.href}
-                className={`mt-7 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-colors ${
-                  featured
-                    ? "bg-emerald-600 text-white hover:bg-emerald-500"
-                    : "border border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50"
-                }`}>
+                {...(plan.whatsapp ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className={`mt-7 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-colors ${featured
+                  ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                  : "border border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50"
+                  }`}>
+                {plan.whatsapp && <WhatsAppIcon size={15} />}
                 {t(`${prefix}.cta`)}
-                <ArrowRight size={15} />
+                {!plan.whatsapp && <ArrowRight size={15} />}
               </a>
 
               <div className={`my-7 h-px ${featured ? "bg-white/10" : "bg-zinc-200"}`} />
 
               <p
-                className={`mb-4 text-xs font-semibold ${labelType} ${
-                  featured ? "text-zinc-500" : "text-zinc-400"
-                }`}>
+                className={`mb-4 text-xs font-semibold ${labelType} ${featured ? "text-zinc-500" : "text-zinc-400"
+                  }`}>
                 {t("landing.pricing.includes")}
               </p>
               <ul className="space-y-3.5">
                 {plan.points.map((point) => (
                   <li
                     key={point}
-                    className={`flex items-start gap-3 text-sm leading-relaxed ${
-                      featured ? "text-zinc-300" : "text-zinc-700"
-                    }`}>
-                    <span
-                      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
-                        featured ? "bg-emerald-500/15" : "bg-emerald-100"
+                    className={`flex items-start gap-3 text-sm leading-relaxed ${featured ? "text-zinc-300" : "text-zinc-700"
                       }`}>
+                    <span
+                      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${featured ? "bg-emerald-500/15" : "bg-emerald-100"
+                        }`}>
                       <Check
                         size={12}
                         className={featured ? "text-emerald-300" : "text-emerald-700"}
@@ -4014,9 +4289,8 @@ function Faq() {
                 <ChevronDown
                   size={17}
                   aria-hidden="true"
-                  className={`shrink-0 text-zinc-400 transition-transform ${
-                    expanded ? "rotate-180" : ""
-                  }`}
+                  className={`shrink-0 text-zinc-400 transition-transform ${expanded ? "rotate-180" : ""
+                    }`}
                 />
               </button>
             </h3>
@@ -4084,9 +4358,8 @@ function LandingContent() {
 
       {/* ── Header ── */}
       <header
-        className={`sticky top-0 z-50 border-b bg-white/85 backdrop-blur-md transition-colors ${
-          scrolled ? "border-zinc-200 shadow-sm shadow-zinc-900/5" : "border-transparent"
-        }`}>
+        className={`sticky top-0 z-50 border-b bg-white/85 backdrop-blur-md transition-colors ${scrolled ? "border-zinc-200 shadow-sm shadow-zinc-900/5" : "border-transparent"
+          }`}>
         <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3.5">
 
           <a href="#top" className="shrink-0">
@@ -4099,7 +4372,7 @@ function LandingContent() {
               has four pixels less than it asked for - and a sticky header
               that overflows takes the whole document sideways with it.
             */}
-            <div className="hidden items-center gap-6 text-sm text-zinc-600 md:flex lg:gap-7">
+          <div className="hidden items-center gap-6 text-sm text-zinc-600 md:flex lg:gap-7">
             {NAV_LINKS.map((link) => {
               const current = activeSection === link.href.slice(1);
 
@@ -4108,16 +4381,14 @@ function LandingContent() {
                   key={link.href}
                   href={link.href}
                   aria-current={current ? "true" : undefined}
-                  className={`relative py-1 transition-colors hover:text-zinc-900 ${
-                    current ? "text-zinc-900" : ""
-                  }`}>
+                  className={`relative py-1 transition-colors hover:text-zinc-900 ${current ? "text-zinc-900" : ""
+                    }`}>
                   {t(`landing.nav.${link.key}`)}
                   {/* The underline tracks the section the reader is in. */}
                   <span
                     aria-hidden="true"
-                    className={`absolute -bottom-0.5 left-0 h-0.5 rounded-full bg-emerald-500 transition-all ${
-                      current ? "w-full opacity-100" : "w-0 opacity-0"
-                    }`}
+                    className={`absolute -bottom-0.5 left-0 h-0.5 rounded-full bg-emerald-500 transition-all ${current ? "w-full opacity-100" : "w-0 opacity-0"
+                      }`}
                   />
                 </a>
               );
@@ -4545,8 +4816,11 @@ function LandingContent() {
                   <ArrowRight size={16} />
                 </a>
                 <a
-                  href="#pricing"
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/5">
+                  <WhatsAppIcon size={16} />
                   {t("landing.cta.secondary")}
                 </a>
               </div>
