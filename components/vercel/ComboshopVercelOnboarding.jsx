@@ -189,6 +189,13 @@ const STEPS = [
   { n: 5, label: "Review" },
 ];
 
+/*
+  Demo mode drops the plan step: a demo store runs on sample data and is not
+  billed, so the wizard goes from contact straight to review. The steps keep
+  their numbers (`n`, what `step` holds); only what is shown is renumbered.
+*/
+const stepsFor = (demoMode) => (demoMode ? STEPS.filter((s) => s.n !== 4) : STEPS);
+
 /* The store owner Combo Store writes into the project's records. */
 const EMPTY_CONTACT = { name: "", email: "", phone: "", address: "" };
 
@@ -529,10 +536,11 @@ function SectionHeading({ children, action }) {
   );
 }
 
-function Stepper({ step }) {
+function Stepper({ step, demoMode = false }) {
+  const steps = stepsFor(demoMode);
   return (
     <div className="mb-8 flex items-center">
-      {STEPS.map((s, i) => {
+      {steps.map((s, i) => {
         const done = step > s.n;
         const current = step === s.n;
         return (
@@ -545,7 +553,7 @@ function Stepper({ step }) {
                     ? "bg-zinc-900 text-white"
                     : "border border-zinc-300 bg-white text-zinc-400"
                   }`}>
-                {done ? <Check size={13} /> : s.n}
+                {done ? <Check size={13} /> : i + 1}
               </span>
               <span
                 className={`hidden text-sm transition-colors sm:block ${current ? "font-semibold text-zinc-900" : "text-zinc-500"
@@ -560,7 +568,7 @@ function Stepper({ step }) {
                 )}
               </span>
             </div>
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <span
                 className={`mx-3 h-px flex-1 transition-colors ${done ? "bg-emerald-500" : "bg-zinc-200"
                   }`}
@@ -573,7 +581,9 @@ function Stepper({ step }) {
   );
 }
 
-function BrandBar({ step }) {
+function BrandBar({ step, demoMode = false }) {
+  const steps = stepsFor(demoMode);
+  const shown = steps.findIndex((s) => s.n === step) + 1;
   return (
     <div className="mb-8 flex items-center justify-between gap-4">
       <a
@@ -591,7 +601,7 @@ function BrandBar({ step }) {
       </a>
       {step ? (
         <span className="text-xs text-zinc-500">
-          Step {step} of {STEPS.length}
+          Step {shown || step} of {steps.length}
         </span>
       ) : null}
     </div>
@@ -764,13 +774,13 @@ function ConfirmDialog({ title, desc, children, onCancel }) {
   the wizard body would be a new type on every render, so React would unmount
   and remount the whole form - losing focus out of the field being typed into.
 */
-function Shell({ children, step }) {
+function Shell({ children, step, demoMode = false }) {
   return (
     <div
       className="min-h-screen w-full bg-zinc-50 text-zinc-900 antialiased"
       style={FONT_SANS}>
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        <BrandBar step={step} />
+        <BrandBar step={step} demoMode={demoMode} />
         {children}
       </div>
     </div>
@@ -785,7 +795,27 @@ export default function ComboshopVercelOnboarding() {
   const [vercelToken, setVercelToken] = useState("");
   const [teamId, setTeamId] = useState("");
   const [framework, setFramework] = useState("nextjs");
+  /*
+    Demo mode: the store deploys with NEXT_PUBLIC_DEMO_MODE=true and runs on
+    sample data with no WordPress behind it (ComboStore's lib/demo), so the
+    WordPress plugins, the server URL and the connection check all drop out,
+    and the domain becomes optional - without one the project stays on the
+    `<project>.vercel.app` address Vercel gives it.
+  */
+  const [demoMode, setDemoMode] = useState(false);
   const [mainDomain, setMainDomain] = useState("");
+  /*
+    The WordPress host. It follows `server.<mainDomain>` until the operator
+    types into the Server field; from then on their value is kept as-is, and
+    clearing the field hands it back to the generated one.
+  */
+  const [serverHost, setServerHost] = useState("");
+  const [serverHostEdited, setServerHostEdited] = useState(false);
+  const serverDomain = serverHostEdited
+    ? serverHost
+    : mainDomain
+      ? `${WP_SUBDOMAIN}.${mainDomain}`
+      : "";
   const [errors, setErrors] = useState({});
   const [copied, setCopied] = useState("");
   const [envDownloaded, setEnvDownloaded] = useState(false);
@@ -874,15 +904,32 @@ export default function ComboshopVercelOnboarding() {
     setApiToken(crypto.randomBytes(32).toString("hex"));
   }, []);
 
+  /*
+    The host the store will answer on: the domain when one is given, else -
+    demo mode only - the project's default Vercel address. Vercel adds a
+    suffix to that address when the name is taken, which is why the deploy
+    reads the real one back once the project exists (`deployedHost`).
+  */
+  const projectSlug = (dbName || "combostore").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "combostore";
+  const storeHost = mainDomain || (demoMode ? `${projectSlug}.vercel.app` : "");
+  const [deployedHost, setDeployedHost] = useState("");
+
   useEffect(() => {
 
-    setDbEnvs([
-      { key: "NEXT_PUBLIC_STORE_URL", value: `${mainDomain}` },
-      { key: "NEXT_PUBLIC_SERVER_URL", value: `server.${mainDomain}` },
-      { key: "API_TOKEN", value: apiToken },
-    ])
+    /* A demo store has no WordPress: no server URL, and no API_TOKEN, which
+       only ever authenticates the storefront's server-side calls to it. */
+    setDbEnvs(demoMode
+      ? [
+        { key: "NEXT_PUBLIC_STORE_URL", value: storeHost },
+        { key: "NEXT_PUBLIC_DEMO_MODE", value: "true" },
+      ]
+      : [
+        { key: "NEXT_PUBLIC_STORE_URL", value: `${mainDomain}` },
+        { key: "NEXT_PUBLIC_SERVER_URL", value: serverDomain },
+        { key: "API_TOKEN", value: apiToken },
+      ])
 
-  }, [mainDomain, apiToken]);
+  }, [demoMode, storeHost, mainDomain, serverDomain, apiToken]);
 
   const [logs, setLogs] = useState([]);
   const [deploying, setDeploying] = useState(false);
@@ -909,12 +956,30 @@ export default function ComboshopVercelOnboarding() {
         .toLowerCase()
     );
 
+  /* Same clean-up for the Server field. An emptied field goes back to
+     following the main domain rather than deploying a blank server URL. */
+  const normalizeServerHost = () => {
+    const cleaned = serverHost
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/.*$/, "")
+      .replace(/\.$/, "")
+      .toLowerCase();
+    if (!cleaned) {
+      setServerHostEdited(false);
+      setServerHost("");
+      return;
+    }
+    setServerHost(cleaned);
+  };
+
   /* Inline field errors, rather than an alert() that says one thing at a time
      and leaves no marker on the field it is talking about. */
   const goStep2 = () => {
     const next = {};
     if (!vercelToken.trim()) next.vercelToken = "A Vercel API token is required.";
-    if (!mainDomain.trim()) next.mainDomain = "Enter the domain this store will run on.";
+    /* Optional in demo mode: the store can run on its Vercel address. */
+    if (!demoMode && !mainDomain.trim()) next.mainDomain = "Enter the domain this store will run on.";
     setErrors(next);
     if (Object.keys(next).length) return;
     setStep(2);
@@ -943,7 +1008,8 @@ export default function ComboshopVercelOnboarding() {
 
 
 
-    setStep(4);
+    /* No plan step in demo mode. */
+    setStep(demoMode ? 5 : 4);
   };
 
   const buildEnvPayload = (envs) =>
@@ -977,7 +1043,8 @@ export default function ComboshopVercelOnboarding() {
       "ComboStore environment variables",
       `Project:    ${dbName || "combostore"}`,
       `Repository: ${DASHBOARD_REPO}`,
-      ...(mainDomain ? [`Domain:     ${mainDomain}`] : []),
+      ...(storeHost ? [`Domain:     ${storeHost}`] : []),
+      ...(demoMode ? ["Mode:       demo (sample data, no WordPress server)"] : []),
       `Generated:  ${new Date().toISOString()}`,
       /*
         The contact goes in as comments rather than variables: the store owner
@@ -1012,7 +1079,9 @@ export default function ComboshopVercelOnboarding() {
           ]
         : []),
       "",
-      "Keep this file private - it contains the store's API token.",
+      demoMode
+        ? "Demo mode: any username and password signs in to /dashboard."
+        : "Keep this file private - it contains the store's API token.",
     ]);
 
   const envFileName = `${(dbName || "combostore")
@@ -1091,13 +1160,34 @@ export default function ComboshopVercelOnboarding() {
       if (!dbRes.ok) throw new Error(`ComboStore: ${dbData.error?.message || JSON.stringify(dbData)}`);
       addLog(`Project created — id: ${dbData.id}`, "ok");
 
-      addLog(`Assigning ${mainDomain}…`, "info");
-      const dbDomRes = await fetch(`https://api.vercel.com/v10/projects/${dbData.id}/domains${teamParam}`, {
-        method: "POST", headers, body: JSON.stringify({ name: mainDomain }),
-      });
-      const dbDomData = await dbDomRes.json();
-      if (!dbDomRes.ok) throw new Error(`Domain: ${dbDomData.error?.message || JSON.stringify(dbDomData)}`);
-      addLog(`${mainDomain} assigned`, "ok");
+      if (mainDomain) {
+        addLog(`Assigning ${mainDomain}…`, "info");
+        const dbDomRes = await fetch(`https://api.vercel.com/v10/projects/${dbData.id}/domains${teamParam}`, {
+          method: "POST", headers, body: JSON.stringify({ name: mainDomain }),
+        });
+        const dbDomData = await dbDomRes.json();
+        if (!dbDomRes.ok) throw new Error(`Domain: ${dbDomData.error?.message || JSON.stringify(dbDomData)}`);
+        addLog(`${mainDomain} assigned`, "ok");
+        setDeployedHost(mainDomain);
+      } else {
+        /*
+          Demo mode without a domain: the store lives on the project's own
+          `.vercel.app` address. Read it back rather than assuming
+          `<name>.vercel.app` - Vercel suffixes it when that name is taken. A
+          failed read is not fatal; the guess is shown instead.
+        */
+        let host = `${dbData.name || projectSlug}.vercel.app`;
+        try {
+          const listRes = await fetch(`https://api.vercel.com/v9/projects/${dbData.id}/domains${teamParam}`, { headers });
+          const listData = await listRes.json();
+          const vercelDomain = (listData?.domains || []).find((d) => /\.vercel\.app$/i.test(d?.name || ""));
+          if (vercelDomain?.name) host = vercelDomain.name;
+        } catch {
+          /* Keep the guess. */
+        }
+        addLog(`No custom domain — demo store will run on ${host}`, "ok");
+        setDeployedHost(host);
+      }
       addLog("All done", "ok");
 
       setTimeout(() => { setDeploying(false); setDeployed(true); }, 700);
@@ -1119,7 +1209,7 @@ export default function ComboshopVercelOnboarding() {
 
 
 
-    var postData = JSON.stringify({ ...contact, domain: mainDomain, project: dbName });
+    var postData = JSON.stringify({ ...contact, domain: storeHost, project: dbName, demo_mode: demoMode });
 
     console.log('create_project 1');
     console.log(postData);
@@ -1185,7 +1275,16 @@ export default function ComboshopVercelOnboarding() {
       return false;
     }
 
-    const host = `${WP_SUBDOMAIN}.${domain}`;
+    const host = serverDomain
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/.*$/, "");
+
+    if (!host) {
+      setWpStatus("failed");
+      setWpError("No server URL to check - go back and enter the server URL.");
+      return false;
+    }
 
     setWpStatus("checking");
     setWpError("");
@@ -1244,7 +1343,7 @@ export default function ComboshopVercelOnboarding() {
     } finally {
       clearTimeout(timer);
     }
-  }, [mainDomain]);
+  }, [mainDomain, serverDomain]);
 
   /* An edited domain is unverified: without this a changed domain inherits the
      previous one's green check. Dropping back to `idle` is also what re-arms
@@ -1252,13 +1351,14 @@ export default function ComboshopVercelOnboarding() {
   useEffect(() => {
     setWpStatus("idle");
     setWpError("");
-  }, [mainDomain]);
+  }, [mainDomain, serverDomain]);
 
   /* Run the check when step 2 opens so the operator does not have to ask for
      it, and leave a failed result alone until they retry by hand. */
   useEffect(() => {
-    if (step === 2 && wpStatus === "idle") combo_store_connection();
-  }, [step, wpStatus, combo_store_connection]);
+    /* A demo store has no WordPress to reach. */
+    if (step === 2 && wpStatus === "idle" && !demoMode) combo_store_connection();
+  }, [step, wpStatus, demoMode, combo_store_connection]);
 
 
 
@@ -1420,7 +1520,7 @@ export default function ComboshopVercelOnboarding() {
       deploy that quietly ships a paid plan nobody paid for is the kind of bug
       a later edit to the navigation would introduce in silence.
     */
-    if (!canLeavePlanStep) {
+    if (!demoMode && !canLeavePlanStep) {
       setStep(4);
       return;
     }
@@ -1450,7 +1550,11 @@ export default function ComboshopVercelOnboarding() {
     setDeployed(false);
     setDeploying(false);
     setVercelToken("");
+    setDemoMode(false);
+    setDeployedHost("");
     setMainDomain("");
+    setServerHost("");
+    setServerHostEdited(false);
     setContact(EMPTY_CONTACT);
     setPlan("");
     /* The loaded script survives a reset - it is page-level - but the order
@@ -1479,8 +1583,10 @@ export default function ComboshopVercelOnboarding() {
     }
   };
 
-  const storeUrl = `https://${mainDomain}`;
-  const dashUrl = `https://${mainDomain}/dashboard`;
+  /* After a deploy, the address Vercel actually reported; before it, the one expected. */
+  const liveHost = deployedHost || storeHost;
+  const storeUrl = `https://${liveHost}`;
+  const dashUrl = `https://${liveHost}/dashboard`;
 
   /* ── Success screen ── */
   if (deployed) {
@@ -1494,8 +1600,15 @@ export default function ComboshopVercelOnboarding() {
             Project deployed
           </h1>
           <p className="mt-1.5 text-sm text-zinc-500">
-            The Vercel project is live and {mainDomain} is assigned.
+            {mainDomain
+              ? <>The Vercel project is live and {mainDomain} is assigned.</>
+              : <>The Vercel project is live on {liveHost}.</>}
           </p>
+          {demoMode && (
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
+              Demo mode — sample data, sign in to the dashboard with any username and password
+            </p>
+          )}
           {planChoice ? (
             <>
               <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
@@ -1511,7 +1624,7 @@ export default function ComboshopVercelOnboarding() {
                 </p>
               )}
             </>
-          ) : (
+          ) : demoMode ? null : (
             <p className="mt-3 text-xs text-zinc-500">
               No plan chosen — one can be picked later from the dashboard.
             </p>
@@ -1537,10 +1650,17 @@ export default function ComboshopVercelOnboarding() {
             />
           </div>
 
-          <div className="mt-4 rounded-xl bg-amber-50 px-3.5 py-3 text-xs leading-relaxed text-amber-900">
-            DNS still has to point at Vercel before these resolve. Vercel shows
-            the exact records on the project's Domains tab.
-          </div>
+          {mainDomain ? (
+            <div className="mt-4 rounded-xl bg-amber-50 px-3.5 py-3 text-xs leading-relaxed text-amber-900">
+              DNS still has to point at Vercel before these resolve. Vercel shows
+              the exact records on the project's Domains tab.
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl bg-zinc-50 px-3.5 py-3 text-xs leading-relaxed text-zinc-600">
+              These work as soon as the first build finishes - no DNS needed. A
+              custom domain can be added later on the project's Domains tab.
+            </div>
+          )}
         </Card>
 
         <div className="flex flex-wrap justify-end gap-2.5">
@@ -1625,7 +1745,7 @@ export default function ComboshopVercelOnboarding() {
 
   /* ── Main wizard ── */
   return (
-    <Shell step={step}>
+    <Shell step={step} demoMode={demoMode}>
 
       {/* Step 1 — Credentials & domain */}
       {step === 1 && (
@@ -1637,9 +1757,38 @@ export default function ComboshopVercelOnboarding() {
             One project, created from your GitHub repo and wired to your domain.
           </p>
 
-          <Stepper step={1} />
+          <Stepper demoMode={demoMode} step={1} />
 
           <Card>
+            <label htmlFor="demo-mode" className="flex cursor-pointer items-start gap-3">
+              <input
+                id="demo-mode"
+                type="checkbox"
+                checked={demoMode}
+                onChange={(e) => {
+                  setDemoMode(e.target.checked);
+                  /* A demo store is not billed: forget a plan picked but not paid for. */
+                  if (e.target.checked && !subscription) setPlan("");
+                  if (errors.mainDomain) setErrors((p) => ({ ...p, mainDomain: "" }));
+                }}
+                className="mt-1 size-4 shrink-0 cursor-pointer accent-emerald-600"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-zinc-900">
+                  Demo mode
+                </span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                  Deploy with sample products, orders and customers and no
+                  WordPress server. Anyone can sign in to the dashboard with any
+                  username and password, and changes reset on reload. The
+                  domain is optional - without one the store runs on its
+                  Vercel address.
+                </span>
+              </span>
+            </label>
+          </Card>
+
+          {!demoMode && <Card>
             <CardHead
               icon={Server}
               tone="zinc"
@@ -1666,7 +1815,7 @@ export default function ComboshopVercelOnboarding() {
                 </a>
               ))}
             </div>
-          </Card>
+          </Card>}
 
           <Card>
             <CardHead
@@ -1754,10 +1903,15 @@ export default function ComboshopVercelOnboarding() {
               icon={Globe}
               tone="violet"
               title="Main domain"
-              desc="The root domain your customer's store will run on."
+              desc={demoMode
+                ? `Optional in demo mode - leave it empty to use ${projectSlug}.vercel.app.`
+                : "The root domain your customer's store will run on."}
             />
 
-            <FieldLabel htmlFor="main-domain">Domain name</FieldLabel>
+            <FieldLabel htmlFor="main-domain">
+              Domain name
+              {demoMode && <span className="font-normal text-zinc-400"> (optional)</span>}
+            </FieldLabel>
             <input
               id="main-domain"
               value={mainDomain}
@@ -1772,12 +1926,47 @@ export default function ComboshopVercelOnboarding() {
             />
             <FieldError>{errors.mainDomain}</FieldError>
 
-            {mainDomain && !errors.mainDomain && (
+            {/* A demo store has no WordPress, so no server field. */}
+            {!demoMode && <>
+            <div className="mt-4 flex items-center justify-between">
+              <FieldLabel htmlFor="server-url">Server URL</FieldLabel>
+              {serverHostEdited && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setServerHostEdited(false);
+                    setServerHost("");
+                  }}
+                  className="mb-1.5 text-xs font-medium text-violet-600 hover:text-violet-700">
+                  Use {WP_SUBDOMAIN}.{mainDomain || "your-domain.com"}
+                </button>
+              )}
+            </div>
+            <input
+              id="server-url"
+              value={serverDomain}
+              onChange={(e) => {
+                setServerHostEdited(true);
+                setServerHost(e.target.value);
+              }}
+              onBlur={normalizeServerHost}
+              placeholder={`${WP_SUBDOMAIN}.${mainDomain || "mystore.com"}`}
+              className={INPUT}
+            />
+            <p className="mt-1.5 text-xs text-zinc-400">
+              Where WordPress runs. Generated from the domain - change it if the
+              server lives somewhere else.
+            </p>
+            </>}
+
+            {storeHost && !errors.mainDomain && (
               <div className="mt-4 space-y-2 rounded-xl bg-zinc-50 p-3.5">
                 {[
-                  { icon: Store, label: "Storefront", value: mainDomain },
-                  { icon: LayoutDashboard, label: "Dashboard", value: `${mainDomain}/dashboard` },
-                  { icon: Server, label: "Server", value: `server.${mainDomain}`, hint: "WordPress" },
+                  { icon: Store, label: "Storefront", value: storeHost },
+                  { icon: LayoutDashboard, label: "Dashboard", value: `${storeHost}/dashboard` },
+                  demoMode
+                    ? { icon: Server, label: "Server", value: "none", hint: "demo data" }
+                    : { icon: Server, label: "Server", value: serverDomain, hint: "WordPress" },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center gap-2.5 text-xs">
                     <row.icon size={13} className="shrink-0 text-zinc-400" />
@@ -1816,13 +2005,24 @@ export default function ComboshopVercelOnboarding() {
             storefront and the dashboard.
           </p>
 
-          <Stepper step={2} />
+          <Stepper demoMode={demoMode} step={2} />
 
-          <Card>
+          {demoMode && (
+            <Card>
+              <CardHead
+                icon={Server}
+                tone="violet"
+                title="Demo mode - no WordPress needed"
+                desc="The store runs on built-in sample data, so there is no server to connect to. NEXT_PUBLIC_DEMO_MODE is set below."
+              />
+            </Card>
+          )}
+
+          {!demoMode && <Card>
             <CardHead
               icon={Server}
               title="WordPress connection"
-              desc={`Combo Store has to answer on ${WP_SUBDOMAIN}.${mainDomain || "your-domain.com"} before the project is created.`}
+              desc={`Combo Store has to answer on ${serverDomain || "your-server.com"} before the project is created.`}
               tone={
                 wpStatus === "ok"
                   ? "emerald"
@@ -1871,7 +2071,7 @@ export default function ComboshopVercelOnboarding() {
             </div>
 
             <p style={FONT_MONO} className="mt-3 truncate text-xs text-zinc-400">
-              POST https://{WP_SUBDOMAIN}.{mainDomain || "your-domain.com"}/wp-json/combo-store/v2/combo_store_connection
+              POST https://{serverDomain || "your-server.com"}/wp-json/combo-store/v2/combo_store_connection
             </p>
 
             <FieldError>{wpError}</FieldError>
@@ -1965,7 +2165,7 @@ export default function ComboshopVercelOnboarding() {
                 </div>
               </div>
             )}
-          </Card>
+          </Card>}
 
           <Card>
             <div className="mb-5 flex flex-wrap items-start gap-3">
@@ -1987,8 +2187,13 @@ export default function ComboshopVercelOnboarding() {
                 </a>
               </div>
               <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">
-                main domain
+                {mainDomain ? "main domain" : "vercel.app"}
               </span>
+              {demoMode && (
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
+                  demo mode
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2005,7 +2210,7 @@ export default function ComboshopVercelOnboarding() {
                 <FieldLabel htmlFor="assigned-domain">Assigned domain</FieldLabel>
                 <input
                   id="assigned-domain"
-                  value={mainDomain}
+                  value={mainDomain || `${storeHost} (Vercel default)`}
                   readOnly
                   className={INPUT_READONLY}
                 />
@@ -2061,7 +2266,7 @@ export default function ComboshopVercelOnboarding() {
           </Card>
 
           <div className="flex flex-wrap items-center justify-end gap-2.5">
-            {wpStatus !== "ok" && (
+            {wpStatus !== "ok" && !demoMode && (
               <p className="mr-auto text-xs text-zinc-500">
                 Verify the WordPress connection to continue.
               </p>
@@ -2093,7 +2298,7 @@ export default function ComboshopVercelOnboarding() {
             written into the downloadable env file.
           </p>
 
-          <Stepper step={3} />
+          <Stepper demoMode={demoMode} step={3} />
 
           <Card>
             <CardHead
@@ -2163,7 +2368,7 @@ export default function ComboshopVercelOnboarding() {
               goStep4()
               create_project()
             }} className={BTN_PRIMARY}>
-              Plan
+              {demoMode ? "Review" : "Plan"}
               <ArrowRight size={15} />
             </button>
           </div>
@@ -2182,7 +2387,7 @@ export default function ComboshopVercelOnboarding() {
             the review.
           </p>
 
-          <Stepper step={4} />
+          <Stepper demoMode={demoMode} step={4} />
 
           <Card>
             <SectionHeading
@@ -2556,7 +2761,7 @@ export default function ComboshopVercelOnboarding() {
             Vercel API.
           </p>
 
-          <Stepper step={5} />
+          <Stepper demoMode={demoMode} step={5} />
 
           <Card className="!bg-zinc-950 !border-zinc-800">
             <SectionHeading>
@@ -2566,11 +2771,12 @@ export default function ComboshopVercelOnboarding() {
               {[
                 { k: "Project", v: dbName },
                 { k: "Repository", v: DASHBOARD_REPO },
-                { k: "Storefront", v: mainDomain },
-                { k: "Dashboard", v: `${mainDomain}/dashboard` },
+                { k: "Storefront", v: storeHost },
+                { k: "Dashboard", v: `${storeHost}/dashboard` },
+                { k: "Server", v: demoMode ? "none — demo mode, sample data" : serverDomain },
                 { k: "Framework", v: framework || "auto-detect" },
                 { k: "Variables", v: `${buildEnvPayload(dbEnvs).length} injected` },
-                { k: "Plan", v: planSummary || "none chosen" },
+                ...(demoMode ? [] : [{ k: "Plan", v: planSummary || "none chosen" }]),
                 ...(subscription
                   ? [
                       {
@@ -2687,7 +2893,10 @@ export default function ComboshopVercelOnboarding() {
             <SectionHeading>WHAT WILL HAPPEN</SectionHeading>
             <ul className="space-y-3">
               {[
-                <>Create the project from <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{DASHBOARD_REPO}</code> and assign it to <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{mainDomain}</code></>,
+                mainDomain
+                  ? <>Create the project from <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{DASHBOARD_REPO}</code> and assign it to <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{mainDomain}</code></>
+                  : <>Create the project from <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{DASHBOARD_REPO}</code> on its Vercel address, <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{storeHost}</code> (Vercel adds a suffix if that name is taken)</>,
+                ...(demoMode ? ["Run in demo mode: sample data, no WordPress, any username and password signs in"] : []),
                 <>Serve the storefront at <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">/</code> and the dashboard at <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">/dashboard</code> from that one project</>,
                 "Inject the environment variables before the first build",
                 "Vercel triggers the initial deployment automatically on creation",
@@ -2704,7 +2913,7 @@ export default function ComboshopVercelOnboarding() {
           </Card>
 
           <div className="flex justify-end gap-2.5">
-            <button type="button" onClick={() => setStep(4)} className={BTN_SECONDARY}>
+            <button type="button" onClick={() => setStep(demoMode ? 3 : 4)} className={BTN_SECONDARY}>
               <ArrowLeft size={15} />
               Back
             </button>
