@@ -8,6 +8,7 @@
       "platform": "Platform",
       "features": "Features",
       "builder": "Page builder",
+      "templates": "Templates",
       "payments": "Payments",
       "pricing": "Pricing",
       "deploy": "Deploy on Vercel",
@@ -389,6 +390,16 @@
           "Button · Shop the offer"
         ]
       }
+    },
+    "templates": {
+      "label": "Templates",
+      "title": "Start from a finished storefront",
+      "body": "Every design is a complete store you can launch as it is, or restyle in the page builder. Scroll inside a card to see the whole page, or open it full screen.",
+      "open": "View full screen",
+      "close": "Close",
+      "prev": "Previous template",
+      "next": "Next template",
+      "alt": "storefront template, full-page screenshot"
     },
     "ai": {
       "label": "AI, built in",

@@ -63,6 +63,17 @@ import {
 
 import { LocaleProvider, LOCALES, useI18n } from "./i18n";
 
+import demoAanchal from "../app/demo/Aanchal.png";
+import demoAdda from "../app/demo/Adda.png";
+import demoAshbab from "../app/demo/Ashbab.png";
+import demoAurelle from "../app/demo/Aurelle.png";
+import demoDolna from "../app/demo/Dolna.png";
+import demoDutipata from "../app/demo/Dutipata.png";
+import demoFashora from "../app/demo/Fashora.png";
+import demoGhori from "../app/demo/Ghori.png";
+import demoGlowbie from "../app/demo/Glowbie.png";
+import demoKhelaghor from "../app/demo/Khelaghor.png";
+
 /*
   Marketing landing page for ComboStore.
 
@@ -181,6 +192,7 @@ const NAV_LINKS = [
   { key: "platform", href: "#platform" },
   { key: "features", href: "#features" },
   { key: "builder", href: "#builder" },
+  { key: "templates", href: "#templates" },
   { key: "payments", href: "#payments" },
   { key: "pricing", href: "#pricing" },
 ];
@@ -4320,6 +4332,184 @@ function Faq() {
 
 /* ─────────────────────── page ─────────────────────── */
 
+/*
+  Storefront templates, shot full-page from the live demos.
+
+  The screenshots live in `app/demo` and are imported rather than served from
+  `public`, so next/image knows each one's size and hands the grid a resized
+  copy instead of a 2-4MB PNG per card. A folder with no `page.jsx` is not a
+  route, so keeping them under `app/` adds nothing to the router.
+*/
+const TEMPLATE_DEMOS = [
+  { name: "Aanchal", image: demoAanchal },
+  { name: "Adda", image: demoAdda },
+  { name: "Ashbab", image: demoAshbab },
+  { name: "Aurelle", image: demoAurelle },
+  { name: "Dolna", image: demoDolna },
+  { name: "Dutipata", image: demoDutipata },
+  { name: "Fashora", image: demoFashora },
+  { name: "Ghori", image: demoGhori },
+  { name: "Glowbie", image: demoGlowbie },
+  { name: "Khelaghor", image: demoKhelaghor },
+];
+
+const TEMPLATE_STEPS = [
+  { step: -1, icon: ChevronLeft, label: "landing.templates.prev" },
+  { step: 1, icon: ChevronRight, label: "landing.templates.next" },
+];
+
+function TemplateGallery() {
+  const { t, n } = useI18n();
+  const dialog = useRef(null);
+  const scroller = useRef(null);
+  const [index, setIndex] = useState(null);
+
+  const count = TEMPLATE_DEMOS.length;
+  const isOpen = index !== null;
+  const demo = isOpen ? TEMPLATE_DEMOS[index] : null;
+  const altSuffix = t("landing.templates.alt");
+
+  /* A dialog does not stop the page behind it scrolling. */
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [isOpen]);
+
+  /* Each template opens at its header, not wherever the last one was left. */
+  useEffect(() => {
+    if (scroller.current) scroller.current.scrollTop = 0;
+  }, [index]);
+
+  const open = (position) => {
+    setIndex(position);
+    dialog.current?.showModal();
+  };
+
+  const close = () => dialog.current?.close();
+
+  const go = (step) => setIndex((current) => (current + step + count) % count);
+
+  const onDialogKeyDown = (event) => {
+    if (event.key === "ArrowLeft") go(-1);
+    if (event.key === "ArrowRight") go(1);
+  };
+
+  return (
+    <>
+      <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {TEMPLATE_DEMOS.map((item, position) => (
+          <li
+            key={item.name}
+            className="group overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 transition-colors hover:border-emerald-500/60">
+
+            {/*
+              The card is a small window onto the full page: it scrolls on its
+              own, so a visitor can skim a template without leaving the grid.
+              The image is a mouse shortcut only - the labelled button below
+              is the one keyboard and screen-reader users reach.
+            */}
+            <div className="relative">
+              <div className="h-80 overflow-y-auto overscroll-contain [scrollbar-width:thin] sm:h-96">
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onClick={() => open(position)}
+                  className="!block !w-full !cursor-zoom-in !rounded-none !border-0 !bg-transparent !p-0 !shadow-none">
+                  <Image
+                    src={item.image}
+                    alt=""
+                    placeholder="blur"
+                    sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw"
+                    className="block h-auto w-full"
+                  />
+                </button>
+              </div>
+              <span className="pointer-events-none absolute right-3 bottom-3 flex size-8 items-center justify-center rounded-lg bg-zinc-900/80 text-white transition-colors group-hover:bg-emerald-600">
+                <Maximize2 size={14} />
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
+              <h3 className="truncate font-medium">{item.name}</h3>
+              <button
+                type="button"
+                onClick={() => open(position)}
+                aria-haspopup="dialog"
+                aria-label={`${t("landing.templates.open")}: ${item.name}`}
+                className="inline-flex shrink-0 items-center gap-1.5 !rounded-lg !border !border-white/15 !bg-white/5 !px-3 !py-1.5 !text-xs !font-medium !text-zinc-200 !shadow-none hover:!border-emerald-500 hover:!text-white">
+                {t("landing.templates.open")}
+                <Maximize2 size={12} />
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <dialog
+        ref={dialog}
+        onClose={() => setIndex(null)}
+        onKeyDown={onDialogKeyDown}
+        aria-label={demo ? `${demo.name} ${altSuffix}` : undefined}
+        className="fixed inset-0 m-0 size-full max-h-none max-w-none overflow-hidden border-0 bg-zinc-950 p-0 text-white backdrop:bg-zinc-950">
+        {demo && (
+          <div className="flex h-full flex-col">
+
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{demo.name}</p>
+                <p className="text-xs text-zinc-400">
+                  {n(index + 1)} / {n(count)}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {TEMPLATE_STEPS.map(({ step, icon: Icon, label }) => (
+                  <button
+                    key={step}
+                    type="button"
+                    onClick={() => go(step)}
+                    aria-label={t(label)}
+                    className="flex size-10 items-center justify-center !rounded-full !border-0 !bg-white/10 !p-0 !text-white !shadow-none hover:!bg-emerald-600">
+                    <Icon size={20} />
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label={t("landing.templates.close")}
+                  className="ml-2 flex size-10 items-center justify-center !rounded-full !border-0 !bg-white/10 !p-0 !text-white !shadow-none hover:!bg-zinc-700">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div ref={scroller} className="flex-1 overflow-y-auto overscroll-contain">
+              <Image
+                key={demo.name}
+                src={demo.image}
+                alt={`${demo.name} ${altSuffix}`}
+                placeholder="blur"
+                priority
+                sizes="(min-width: 1440px) 1440px, 100vw"
+                className="mx-auto block h-auto w-full max-w-[1440px]"
+              />
+            </div>
+
+          </div>
+        )}
+      </dialog>
+    </>
+  );
+}
+
 function LandingContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { t, tList, isBangla } = useI18n();
@@ -4384,7 +4574,7 @@ function LandingContent() {
               has four pixels less than it asked for - and a sticky header
               that overflows takes the whole document sideways with it.
             */}
-          <div className="hidden items-center gap-6 text-sm text-zinc-600 md:flex lg:gap-7">
+          <div className="hidden items-center gap-4 text-sm text-zinc-600 md:flex lg:gap-7">
             {NAV_LINKS.map((link) => {
               const current = activeSection === link.href.slice(1);
 
@@ -4645,6 +4835,23 @@ function LandingContent() {
             </div>
 
             <BuilderShowcase />
+
+          </div>
+        </section>
+
+        {/* ── Storefront templates ── */}
+        <section id="templates" className="scroll-mt-16 bg-zinc-950 text-white">
+          <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
+
+            <div className="mb-10 max-w-2xl">
+              <SectionLabel tone="dark">{t("landing.templates.label")}</SectionLabel>
+              <h2 className={`mb-4 text-3xl font-semibold sm:text-4xl ${h2Type}`}>
+                {t("landing.templates.title")}
+              </h2>
+              <p className="text-lg leading-relaxed text-zinc-400">{t("landing.templates.body")}</p>
+            </div>
+
+            <TemplateGallery />
 
           </div>
         </section>
