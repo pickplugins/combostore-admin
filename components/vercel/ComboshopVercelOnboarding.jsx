@@ -89,40 +89,41 @@ const LEMON_CONFIGURED = Object.values(LEMON_PLAN_LINKS).some(
 );
 
 /*
-  Paddle Billing, offered beside Lemon Squeezy. Same browser-only shape:
-  Paddle.js opens an overlay, the finished transaction is handed to WordPress,
-  and the record to trust is Paddle's `transaction.completed` webhook on the
-  WordPress side, where the API key lives.
+  Paddle Classic, offered beside Lemon Squeezy. ComboStore's Paddle account is
+  a Classic vendor account (Subscription Plans, Vendor ID and auth codes - no
+  client-side tokens), so this uses Classic's Paddle.js v1. The v2 script
+  answers a Classic account with a 403 and an overlay that only says
+  "Something went wrong".
 
-  Paddle.js v2 needs a client-side token (`test_…` or `live_…`, from
-  Developer tools → Authentication) and a Billing price id (`pri_…`) per plan.
-  The numeric ids Paddle Classic used do not work with v2.
+  Same browser-only shape as Lemon Squeezy: the overlay takes the money, the
+  finished checkout is handed to WordPress, and the record to trust is the
+  Classic `subscription_created` / `payment_succeeded` webhook on the
+  WordPress side, verified with the account's public key.
 
-  The environment follows the token when it is not set explicitly: a `test_`
-  token only works against sandbox, a `live_` one only against production, so
-  guessing from the prefix cannot pick the wrong one. With neither, sandbox -
-  an unset value must not quietly imply real cards.
+  The front end needs only the Vendor ID (Developer Tools → Authentication,
+  public by design - every Classic checkout carries it) and a Subscription
+  Plan id per tier (Catalog → Subscription Plans). Classic sandbox is a
+  separate vendor account, so the environment is explicit and defaults to
+  production.
 */
-const PADDLE_JS_SRC = "https://cdn.paddle.com/paddle/v2/paddle.js";
-const PADDLE_CLIENT_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
-const PADDLE_ENV =
-  process.env.NEXT_PUBLIC_PADDLE_ENV ||
-  (PADDLE_CLIENT_TOKEN.startsWith("live_") ? "production" : "sandbox");
+const PADDLE_JS_SRC = "https://cdn.paddle.com/paddle/paddle.js";
+const PADDLE_VENDOR_ID = process.env.NEXT_PUBLIC_PADDLE_VENDOR_ID || "";
+const PADDLE_ENV = process.env.NEXT_PUBLIC_PADDLE_ENV === "sandbox" ? "sandbox" : "production";
 
-const PADDLE_PLAN_PRICES = {
+const PADDLE_PLAN_PRODUCTS = {
   starter: {
-    envKey: "NEXT_PUBLIC_PADDLE_PRICE_STARTER",
-    priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_STARTER || "",
+    envKey: "NEXT_PUBLIC_PADDLE_PRODUCT_STARTER",
+    productId: process.env.NEXT_PUBLIC_PADDLE_PRODUCT_STARTER || "",
   },
   business: {
-    envKey: "NEXT_PUBLIC_PADDLE_PRICE_BUSINESS",
-    priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_BUSINESS || "",
+    envKey: "NEXT_PUBLIC_PADDLE_PRODUCT_BUSINESS",
+    productId: process.env.NEXT_PUBLIC_PADDLE_PRODUCT_BUSINESS || "",
   },
 };
 
 const PADDLE_CONFIGURED =
-  Boolean(PADDLE_CLIENT_TOKEN) &&
-  Object.values(PADDLE_PLAN_PRICES).some((plan) => plan.priceId);
+  Boolean(PADDLE_VENDOR_ID) &&
+  Object.values(PADDLE_PLAN_PRODUCTS).some((plan) => plan.productId);
 
 /*
   The checkouts this wizard can open, in the order they are offered. The first
@@ -142,7 +143,7 @@ const providerName = (key) =>
    `provider` predate Paddle and are Lemon Squeezy. */
 function billingLine(sub) {
   if (sub.provider === "paddle")
-    return `Paddle${sub.testMode ? " (sandbox)" : ""} · txn ${sub.transactionId || "—"}`;
+    return `Paddle${sub.testMode ? " (sandbox)" : ""} · checkout ${sub.checkoutId || "—"}`;
   return `Lemon Squeezy${sub.testMode ? " (test)" : ""} · order #${sub.orderNumber || sub.orderId}`;
 }
 
@@ -213,7 +214,7 @@ const PLAN_ORDER = ["starter", "business", "enterprise"];
 const PLAN_OPTIONS = PLAN_ORDER.map((key) => {
   const plan = enMessages.landing.pricing.plans[key];
   const lemon = LEMON_PLAN_LINKS[key];
-  const paddle = PADDLE_PLAN_PRICES[key];
+  const paddle = PADDLE_PLAN_PRODUCTS[key];
 
   return {
     key,
@@ -224,13 +225,13 @@ const PLAN_OPTIONS = PLAN_ORDER.map((key) => {
     points: Object.values(plan.points).slice(0, 3),
     /* `billed` is "this tier is sold through a checkout at all", which is
        not the same as having a usable link - an empty `checkoutLink` or
-       `priceId` on a billed plan is a configuration gap, and the two read
+       `paddleProductId` on a billed plan is a configuration gap, and the two read
        differently on screen. */
     billed: Boolean(lemon || paddle),
     checkoutLink: lemon?.link || "",
     linkEnvKey: lemon?.envKey || "",
-    priceId: paddle?.priceId || "",
-    priceEnvKey: paddle?.envKey || "",
+    paddleProductId: paddle?.productId || "",
+    paddleEnvKey: paddle?.envKey || "",
   };
 });
 
@@ -552,10 +553,10 @@ function initPaddle() {
       document.head.appendChild(script);
     }
   }).then((paddle) => {
-    /* Sandbox has to be set before Initialize; production is the default. */
+    /* Sandbox has to be set before Setup; production is the default. */
     if (PADDLE_ENV === "sandbox") paddle.Environment.set("sandbox");
-    paddle.Initialize({
-      token: PADDLE_CLIENT_TOKEN,
+    paddle.Setup({
+      vendor: Number(PADDLE_VENDOR_ID),
       eventCallback: (event) => paddleEventSink?.(event),
     });
     return paddle;
@@ -574,19 +575,15 @@ function loadPaddle() {
 }
 
 /*
-  Paddle Billing ids are prefixed, so a value pasted from the wrong place - a
-  Classic product id, a Lemon Squeezy link, a server-side API key - can be
-  named before the overlay opens empty or Paddle rejects it with a 403.
+  Classic ids are plain numbers, so a value pasted from the wrong place - a
+  Billing `pri_…` id, a Lemon Squeezy link, an auth code - can be named before
+  the overlay opens on nothing.
 */
 function paddleConfigProblem(option) {
-  if (!/^(test|live)_/.test(PADDLE_CLIENT_TOKEN))
-    return "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not a Paddle Billing client-side token - it should start with test_ or live_ (Developer tools → Authentication → Client-side tokens).";
-  if (PADDLE_CLIENT_TOKEN.startsWith("test_") && PADDLE_ENV !== "sandbox")
-    return "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is a sandbox token but NEXT_PUBLIC_PADDLE_ENV is not sandbox.";
-  if (PADDLE_CLIENT_TOKEN.startsWith("live_") && PADDLE_ENV === "sandbox")
-    return "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is a live token but NEXT_PUBLIC_PADDLE_ENV is sandbox.";
-  if (option?.priceId && !option.priceId.startsWith("pri_"))
-    return `${option.priceEnvKey} is not a Paddle Billing price id - it should start with pri_ (Catalog → Products → the price's ID).`;
+  if (!/^\d+$/.test(PADDLE_VENDOR_ID))
+    return "NEXT_PUBLIC_PADDLE_VENDOR_ID is not a Paddle Vendor ID - it is the number shown under Developer Tools → Authentication → Your Paddle Vendor ID.";
+  if (option?.paddleProductId && !/^\d+$/.test(option.paddleProductId))
+    return `${option.paddleEnvKey} is not a Paddle Classic plan id - it is the number in the ID column under Catalog → Subscription Plans (e.g. 931087, without a pri_ prefix).`;
   return "";
 }
 
@@ -1231,8 +1228,8 @@ export default function ComboshopVercelOnboarding() {
       ...(subscription?.provider === "paddle"
         ? [
             `Billing:   Paddle${subscription.testMode ? " (sandbox)" : ""}`,
-            ...(subscription.transactionId
-              ? [`Txn:       ${subscription.transactionId}`]
+            ...(subscription.checkoutId
+              ? [`Checkout:  ${subscription.checkoutId}`]
               : []),
             ...(subscription.customerId
               ? [`Customer:  ${subscription.customerId}`]
@@ -1283,8 +1280,8 @@ export default function ComboshopVercelOnboarding() {
   */
   /* The selected plan's id in the chosen checkout, and the variable that
      should hold it when it does not. */
-  const planCheckoutId = isPaddle ? planChoice?.priceId : planChoice?.checkoutLink;
-  const planCheckoutEnvKey = isPaddle ? planChoice?.priceEnvKey : planChoice?.linkEnvKey;
+  const planCheckoutId = isPaddle ? planChoice?.paddleProductId : planChoice?.checkoutLink;
+  const planCheckoutEnvKey = isPaddle ? planChoice?.paddleEnvKey : planChoice?.linkEnvKey;
   const planNeedsPayment =
     Boolean(planCheckoutId) && checkoutStatus !== "unavailable";
   const planPaid = Boolean(subscription && subscription.plan === plan);
@@ -1631,62 +1628,71 @@ export default function ComboshopVercelOnboarding() {
   }, []);
 
   /*
-    Every Paddle.js event arrives here. Unlike Lemon Squeezy, Paddle hands the
-    `customData` sent with the checkout back on the event, so the plan, project
-    and contact come off the payload rather than out of refs.
+    Every Paddle Classic event arrives here as `{ event, eventData }`. Only
+    `Checkout.Complete` matters for the record; the plan, project and contact
+    come from the refs `openPaddleCheckout` filled, with the `passthrough` it
+    sent as a cross-check when Paddle echoes it back.
   */
-  const onPaddleEvent = useCallback((event) => {
-    const { name, data } = event || {};
+  const onPaddleEvent = useCallback((payload) => {
+    const name = payload?.event || "";
+    const data = payload?.eventData || {};
 
-    switch (name) {
-      case "checkout.completed": {
-        const custom = data?.custom_data || {};
-        const totals = data?.totals || {};
-        const record = {
-          provider: "paddle",
-          plan: custom.plan || pendingPlan.current,
-          transactionId: data?.transaction_id || "",
-          customerId: data?.customer?.id || "",
-          priceId: data?.items?.[0]?.price_id || "",
-          email: data?.customer?.email || "",
-          total:
-            totals.total != null
-              ? `${totals.total} ${data?.currency_code || ""}`.trim()
-              : "",
-          receipt: "",
-          testMode: PADDLE_ENV === "sandbox",
-          at: new Date().toISOString(),
-        };
-
-        setSubscription(record);
-        setPaddleError("");
-
-        /* The overlay is left open: Paddle shows its own success screen. */
-        record_subscription({
-          provider: "paddle",
-          plan: record.plan,
-          project: custom.project || dbNameRef.current,
-          domain: custom.domain || mainDomainRef.current,
-          contact_name: custom.contact_name || contactRef.current.name.trim(),
-          contact_email: custom.contact_email || contactRef.current.email.trim(),
-          transaction_id: record.transactionId,
-          customer_id: record.customerId,
-          price_id: record.priceId,
-          test_mode: record.testMode,
-        });
-        break;
+    if (name === "Checkout.Complete") {
+      const checkout = data.checkout || {};
+      let passthrough = {};
+      try {
+        passthrough =
+          typeof checkout.passthrough === "string"
+            ? JSON.parse(checkout.passthrough)
+            : checkout.passthrough || {};
+      } catch {
+        passthrough = {};
       }
+      const customer = checkout.prices?.customer || {};
 
-      case "checkout.error":
-      case "checkout.payment.failed":
-        setPaddleError(
-          data?.error?.detail ||
-            "Paddle could not take that payment. Nothing was charged - try again or use another card."
-        );
-        break;
+      const record = {
+        provider: "paddle",
+        plan: passthrough.plan || pendingPlan.current,
+        checkoutId: checkout.id || "",
+        productId: data.product?.id ?? "",
+        customerId: data.user?.id ?? "",
+        email: data.user?.email || "",
+        total:
+          customer.total != null
+            ? `${customer.total} ${customer.currency || ""}`.trim()
+            : "",
+        receipt: "",
+        testMode: PADDLE_ENV === "sandbox",
+        at: new Date().toISOString(),
+      };
 
-      default:
-        break;
+      setSubscription(record);
+      setPaddleError("");
+
+      /* The overlay is left open: Paddle shows its own success screen. */
+      record_subscription({
+        provider: "paddle",
+        plan: record.plan,
+        project: passthrough.project || dbNameRef.current,
+        domain: passthrough.domain || mainDomainRef.current,
+        contact_name: contactRef.current.name.trim(),
+        contact_email: contactRef.current.email.trim(),
+        checkout_id: record.checkoutId,
+        product_id: record.productId,
+        user_id: record.customerId,
+        test_mode: record.testMode,
+      });
+      return;
+    }
+
+    /* Classic reports a failed card or a checkout that would not load as an
+       `…Error` event; the overlay says little, so the reason is shown here. */
+    if (/error/i.test(name)) {
+      setPaddleError(
+        data.error ||
+          data.message ||
+          "Paddle could not complete the checkout. Nothing was charged - try again or use another card."
+      );
     }
   }, []);
 
@@ -1703,7 +1709,7 @@ export default function ComboshopVercelOnboarding() {
     if (!PADDLE_CONFIGURED) {
       setPaddleStatus("unavailable");
       setPaddleError(
-        "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN or the Paddle price ids are not set in .env, so Paddle checkout cannot open. A plan can still be recorded with this deployment and billed afterwards."
+        "NEXT_PUBLIC_PADDLE_VENDOR_ID or the Paddle plan ids are not set in .env, so Paddle checkout cannot open. A plan can still be recorded with this deployment and billed afterwards."
       );
       return;
     }
@@ -1746,12 +1752,13 @@ export default function ComboshopVercelOnboarding() {
   };
 
   /*
-    Open one plan in Paddle's overlay. The email from step 3 is prefilled, and
-    everything WordPress needs to match the webhook to a store goes into
-    `customData` - by the time Paddle calls, this page may be long gone.
+    Open one plan in Paddle Classic's overlay. The email from step 3 is
+    prefilled, and everything WordPress needs to match the webhook to a store
+    goes into `passthrough` (a string, at most 1000 characters) - Classic
+    webhooks carry it back, and by then this page may be long gone.
   */
   const openPaddleCheckout = (option) => {
-    if (!option?.priceId || paddleStatus !== "ready" || !window.Paddle) return;
+    if (!option?.paddleProductId || paddleStatus !== "ready" || !window.Paddle) return;
 
     const problem = paddleConfigProblem(option);
     if (problem) {
@@ -1770,22 +1777,18 @@ export default function ComboshopVercelOnboarding() {
 
     try {
       window.Paddle.Checkout.open({
-        settings: {
-          displayMode: "overlay",
-          theme: "light",
-          /* With an email carried over from step 3 there is no account to log
-             out of; without one the overlay has to be free to ask. */
-          allowLogout: !email,
-        },
-        items: [{ priceId: option.priceId, quantity: 1 }],
-        ...(email ? { customer: { email } } : null),
-        customData: {
+        method: "overlay",
+        product: Number(option.paddleProductId),
+        allowQuantity: false,
+        /* With an email carried over from step 3 there is no account to log
+           out of; without one the overlay has to be free to ask. */
+        ...(email ? { email, disableLogout: true } : null),
+        passthrough: JSON.stringify({
           plan: option.key,
           project: dbName,
           domain: mainDomain,
-          contact_name: contact.name.trim(),
           contact_email: email,
-        },
+        }),
       });
     } catch (error) {
       setPaddleStatus("unavailable");
@@ -2906,7 +2909,7 @@ export default function ComboshopVercelOnboarding() {
                           className="mt-2 space-y-1 text-[11px] text-emerald-900/80">
                           <div className="truncate">
                             {subscription.provider === "paddle"
-                              ? `txn ${subscription.transactionId || "—"}`
+                              ? `checkout ${subscription.checkoutId || "—"}`
                               : `order #${subscription.orderNumber || "—"}`}
                           </div>
                           {subscription.identifier && (
@@ -3062,13 +3065,13 @@ export default function ComboshopVercelOnboarding() {
                         Paddle{" "}
                         <span className="font-semibold">sandbox</span> checkout —
                         test cards only (4242 4242 4242 4242, any future date,
-                        CVC 100). Use a{" "}
+                        CVC 100). Remove{" "}
                         <code
                           style={FONT_MONO}
                           className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px]">
-                          live_
+                          NEXT_PUBLIC_PADDLE_ENV=sandbox
                         </code>{" "}
-                        client token and live price ids to take real payments.
+                        and use the live Vendor ID and plan ids to take real payments.
                       </p>
                     )}
 
@@ -3109,7 +3112,7 @@ export default function ComboshopVercelOnboarding() {
                   </code>{" "}
                   download
                   {subscription
-                    ? `, with the ${providerName(subscription.provider)} ${subscription.provider === "paddle" ? "transaction id" : "order number"} beside it.`
+                    ? `, with the ${providerName(subscription.provider)} ${subscription.provider === "paddle" ? "checkout id" : "order number"} beside it.`
                     : "."}
                   {planNeedsPayment && !planPaid
                     ? " Checkout has to finish before the review opens."
