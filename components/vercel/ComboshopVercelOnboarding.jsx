@@ -130,7 +130,7 @@ const PADDLE_CONFIGURED =
   configured one is preselected; the picker only appears when more than one is.
 */
 const PAYMENT_PROVIDERS = [
-  { key: "lemonsqueezy", name: "Lemon Squeezy", configured: LEMON_CONFIGURED },
+  // { key: "lemonsqueezy", name: "Lemon Squeezy", configured: LEMON_CONFIGURED },
   { key: "paddle", name: "Paddle", configured: PADDLE_CONFIGURED },
 ];
 
@@ -461,11 +461,11 @@ function initLemon() {
       lemon
         ? settle(resolve, lemon)
         : settle(
-            reject,
-            new Error(
-              "Lemon.js loaded but createLemonSqueezy() did not produce window.LemonSqueezy."
-            )
-          );
+          reject,
+          new Error(
+            "Lemon.js loaded but createLemonSqueezy() did not produce window.LemonSqueezy."
+          )
+        );
     });
     script.addEventListener("error", () =>
       settle(
@@ -1227,16 +1227,16 @@ export default function ComboshopVercelOnboarding() {
       */
       ...(subscription?.provider === "paddle"
         ? [
-            `Billing:   Paddle${subscription.testMode ? " (sandbox)" : ""}`,
-            ...(subscription.checkoutId
-              ? [`Checkout:  ${subscription.checkoutId}`]
-              : []),
-            ...(subscription.customerId
-              ? [`Customer:  ${subscription.customerId}`]
-              : []),
-          ]
+          `Billing:   Paddle${subscription.testMode ? " (sandbox)" : ""}`,
+          ...(subscription.checkoutId
+            ? [`Checkout:  ${subscription.checkoutId}`]
+            : []),
+          ...(subscription.customerId
+            ? [`Customer:  ${subscription.customerId}`]
+            : []),
+        ]
         : subscription
-        ? [
+          ? [
             `Billing:   Lemon Squeezy${subscription.testMode ? " (test mode)" : ""}`,
             ...(subscription.orderNumber
               ? [`Order:     #${subscription.orderNumber}`]
@@ -1248,7 +1248,7 @@ export default function ComboshopVercelOnboarding() {
               ? [`Customer:  ${subscription.customerId}`]
               : []),
           ]
-        : []),
+          : []),
       "",
       demoMode
         ? "Demo mode: any username and password signs in to /dashboard."
@@ -1690,8 +1690,8 @@ export default function ComboshopVercelOnboarding() {
     if (/error/i.test(name)) {
       setPaddleError(
         data.error ||
-          data.message ||
-          "Paddle could not complete the checkout. Nothing was charged - try again or use another card."
+        data.message ||
+        "Paddle could not complete the checkout. Nothing was charged - try again or use another card."
       );
     }
   }, []);
@@ -2272,35 +2272,35 @@ export default function ComboshopVercelOnboarding() {
 
             {/* A demo store has no WordPress, so no server field. */}
             {!demoMode && <>
-            <div className="mt-4 flex items-center justify-between">
-              <FieldLabel htmlFor="server-url">Server URL</FieldLabel>
-              {serverHostEdited && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setServerHostEdited(false);
-                    setServerHost("");
-                  }}
-                  className="mb-1.5 text-xs font-medium text-violet-600 hover:text-violet-700">
-                  Use {WP_SUBDOMAIN}.{mainDomain || "your-domain.com"}
-                </button>
-              )}
-            </div>
-            <input
-              id="server-url"
-              value={serverDomain}
-              onChange={(e) => {
-                setServerHostEdited(true);
-                setServerHost(e.target.value);
-              }}
-              onBlur={normalizeServerHost}
-              placeholder={`${WP_SUBDOMAIN}.${mainDomain || "mystore.com"}`}
-              className={INPUT}
-            />
-            <p className="mt-1.5 text-xs text-zinc-400">
-              Where WordPress runs. Generated from the domain - change it if the
-              server lives somewhere else.
-            </p>
+              <div className="mt-4 flex items-center justify-between">
+                <FieldLabel htmlFor="server-url">Server URL</FieldLabel>
+                {serverHostEdited && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setServerHostEdited(false);
+                      setServerHost("");
+                    }}
+                    className="mb-1.5 text-xs font-medium text-violet-600 hover:text-violet-700">
+                    Use {WP_SUBDOMAIN}.{mainDomain || "your-domain.com"}
+                  </button>
+                )}
+              </div>
+              <input
+                id="server-url"
+                value={serverDomain}
+                onChange={(e) => {
+                  setServerHostEdited(true);
+                  setServerHost(e.target.value);
+                }}
+                onBlur={normalizeServerHost}
+                placeholder={`${WP_SUBDOMAIN}.${mainDomain || "mystore.com"}`}
+                className={INPUT}
+              />
+              <p className="mt-1.5 text-xs text-zinc-400">
+                Where WordPress runs. Generated from the domain - change it if the
+                server lives somewhere else.
+              </p>
             </>}
 
             {storeHost && !errors.mainDomain && (
@@ -3178,11 +3178,11 @@ export default function ComboshopVercelOnboarding() {
                 ...(demoMode ? [] : [{ k: "Plan", v: planSummary || "none chosen" }]),
                 ...(subscription
                   ? [
-                      {
-                        k: "Billing",
-                        v: billingLine(subscription),
-                      },
-                    ]
+                    {
+                      k: "Billing",
+                      v: billingLine(subscription),
+                    },
+                  ]
                   : []),
               ].map((row) => (
                 <div key={row.k} className="flex items-baseline gap-3">
