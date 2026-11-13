@@ -119,6 +119,12 @@ const PADDLE_PLAN_PRODUCTS = {
     envKey: "NEXT_PUBLIC_PADDLE_PRODUCT_BUSINESS",
     productId: process.env.NEXT_PUBLIC_PADDLE_PRODUCT_BUSINESS || "",
   },
+  lifetime: {
+    envKey: "NEXT_PUBLIC_PADDLE_PRODUCT_LIFETIME",
+    productId: process.env.NEXT_PUBLIC_PADDLE_PRODUCT_LIFETIME || "",
+  },
+
+
 };
 
 const PADDLE_CONFIGURED =
@@ -209,7 +215,7 @@ const CORS_PLUGIN = WP_PLUGINS.find((plugin) => plugin.name === "Enable CORS");
   the room for all six; here they are a reminder of what the tier is, under a
   row that has to stay one glance tall.
 */
-const PLAN_ORDER = ["starter", "business", "enterprise"];
+const PLAN_ORDER = ["starter", "business",];
 
 const PLAN_OPTIONS = PLAN_ORDER.map((key) => {
   const plan = enMessages.landing.pricing.plans[key];
