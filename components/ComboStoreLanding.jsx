@@ -72,7 +72,24 @@ import demoDutipata from "../app/demo/Dutipata.png";
 import demoFashora from "../app/demo/Fashora.png";
 import demoGhori from "../app/demo/Ghori.png";
 import demoGlowbie from "../app/demo/Glowbie.png";
+import demoHaatbox from "../app/demo/Haatbox.png";
+import demoJhola from "../app/demo/Jhola.png";
+import demoJuta from "../app/demo/Juta.png";
+import demoKaath from "../app/demo/Kaath.png";
 import demoKhelaghor from "../app/demo/Khelaghor.png";
+import demoKodom from "../app/demo/Kodom.png";
+import demoMuthofon from "../app/demo/Muthofon.png";
+import demoNexora from "../app/demo/Nexora.png";
+import demoNolen from "../app/demo/Nolen.png";
+import demoNoorani from "../app/demo/Noorani.png";
+import demoOushodh from "../app/demo/Oushodh.png";
+import demoPathok from "../app/demo/Pathok.png";
+import demoPauruti from "../app/demo/Pauruti.png";
+import demoPosha from "../app/demo/Posha.png";
+import demoSugondhi from "../app/demo/Sugondhi.png";
+import demoTuntuni from "../app/demo/Tuntuni.png";
+import demoUpohar from "../app/demo/Upohar.png";
+import demoVoltix from "../app/demo/Voltix.png";
 
 /*
   Marketing landing page for ComboStore.
@@ -4350,7 +4367,24 @@ const TEMPLATE_DEMOS = [
   { name: "Fashora", image: demoFashora },
   { name: "Ghori", image: demoGhori },
   { name: "Glowbie", image: demoGlowbie },
+  { name: "Haatbox", image: demoHaatbox },
+  { name: "Jhola", image: demoJhola },
+  { name: "Juta", image: demoJuta },
+  { name: "Kaath", image: demoKaath },
   { name: "Khelaghor", image: demoKhelaghor },
+  { name: "Kodom", image: demoKodom },
+  { name: "Muthofon", image: demoMuthofon },
+  { name: "Nexora", image: demoNexora },
+  { name: "Nolen", image: demoNolen },
+  { name: "Noorani", image: demoNoorani },
+  { name: "Oushodh", image: demoOushodh },
+  { name: "Pathok", image: demoPathok },
+  { name: "Pauruti", image: demoPauruti },
+  { name: "Posha", image: demoPosha },
+  { name: "Sugondhi", image: demoSugondhi },
+  { name: "Tuntuni", image: demoTuntuni },
+  { name: "Upohar", image: demoUpohar },
+  { name: "Voltix", image: demoVoltix },
 ];
 
 const TEMPLATE_STEPS = [
